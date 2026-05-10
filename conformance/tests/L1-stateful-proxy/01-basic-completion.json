@@ -1,0 +1,21 @@
+{
+  "description": "L1: POST /v1/chat/completions returns sbp.session_id and X-Session-Token header",
+  "level": "L1",
+  "request": {
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "headers": { "Content-Type": "application/json" },
+    "body": {
+      "model": "gpt-4o",
+      "messages": [{ "role": "user", "content": "Hello" }]
+    }
+  },
+  "expect": {
+    "status": 200,
+    "headers_include": ["x-session-token"],
+    "body_contains": {
+      "sbp.session_id": { "type": "string", "format": "uuid" }
+    },
+    "body_excludes": ["sbp.force_new_session"]
+  }
+}

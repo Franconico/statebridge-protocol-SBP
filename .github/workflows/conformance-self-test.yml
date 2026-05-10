@@ -1,0 +1,54 @@
+name: Conformance self-test
+
+on:
+  push:
+    paths:
+      - "reference/server-python/**"
+      - "conformance/**"
+      - "spec/**"
+  pull_request:
+    paths:
+      - "reference/server-python/**"
+      - "conformance/**"
+      - "spec/**"
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install reference server
+        working-directory: reference/server-python
+        run: pip install -e ".[dev]"
+
+      - name: Install conformance runner deps
+        run: pip install httpx websockets
+
+      - name: Start reference server
+        env:
+          SBP_LLM_BASE_URL: "http://localhost:9999"  # unreachable mock — L1 tests expect 503
+          SBP_LLM_API_KEY: "test-key"
+          SBP_JWT_SECRET: "conformance-test-secret-must-be-32-chars-minimum"
+          SBP_PORT: "8080"
+        run: |
+          sbp-server start --port 8080 &
+          sleep 2
+          curl -sf http://localhost:8080/health
+
+      - name: Run L3 conformance (HTTP-only — L4/L5 need real LLM for WS session)
+        run: python conformance/runner.py --target http://localhost:8080 --level L3 --verbose
+        env:
+          SBP_LLM_BASE_URL: "http://localhost:9999"
+
+      - name: Run reference server unit tests
+        working-directory: reference/server-python
+        run: pytest -v --tb=short
+        env:
+          SBP_LLM_BASE_URL: "http://localhost:9999"
+          SBP_JWT_SECRET: "conformance-test-secret-must-be-32-chars-minimum"

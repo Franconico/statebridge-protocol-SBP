@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://statebridge-protocol.github.io/sbp/schemas/completions-request.schema.json",
+  "title": "SBP Chat Completions Request",
+  "description": "OpenAI-compatible chat completions request body with the optional top-level 'sbp' namespace. The model field accepts any OpenAI-compatible model string — SBP is LLM-agnostic.",
+  "type": "object",
+  "required": ["messages"],
+  "properties": {
+    "model": {
+      "type": "string",
+      "description": "Any OpenAI-compatible model identifier. SBP is model-agnostic — this value is passed through verbatim to the LLM router.",
+      "examples": ["gpt-4o", "claude-opus-4-7", "llama-4-scout", "deepseek-v3"]
+    },
+    "messages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ChatMessage" },
+      "minItems": 1
+    },
+    "stream": { "type": "boolean", "default": false },
+    "temperature": { "type": ["number", "null"], "minimum": 0, "maximum": 2 },
+    "max_tokens": { "type": ["integer", "null"], "minimum": 1 },
+    "top_p": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "frequency_penalty": { "type": ["number", "null"] },
+    "presence_penalty": { "type": ["number", "null"] },
+    "stop": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } },
+        { "type": "null" }
+      ]
+    },
+    "tools": {
+      "type": ["array", "null"],
+      "items": { "type": "object" }
+    },
+    "tool_choice": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "object" },
+        { "type": "null" }
+      ]
+    },
+    "sbp": {
+      "$ref": "#/$defs/SBPRequestOptions",
+      "description": "OPTIONAL SBP extension namespace. If absent or null, the server behaves as a standard OpenAI proxy with no session tracking."
+    }
+  },
+  "$defs": {
+    "ChatMessage": {
+      "type": "object",
+      "required": ["role"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["system", "user", "assistant", "tool"]
+        },
+        "content": { "type": ["string", "null"] },
+        "tool_calls": { "type": ["array", "null"], "items": { "type": "object" } },
+        "tool_call_id": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] }
+      }
+    },
+    "SBPRequestOptions": {
+      "type": "object",
+      "description": "SBP extension fields. All properties are OPTIONAL.",
+      "properties": {
+        "force_new_session": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, bypass any existing suspended session and start fresh."
+        },
+        "checkpoint_every": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Take a durable snapshot every N turns."
+        },
+        "memory_retrieval": {
+          "type": "boolean",
+          "default": true,
+          "description": "If true and the server has a memory backend, inject retrieved memories into the context."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

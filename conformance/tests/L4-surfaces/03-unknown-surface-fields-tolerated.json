@@ -1,0 +1,35 @@
+{
+  "description": "L4: Servers MUST tolerate unknown fields in SurfaceContext (forward-compatible)",
+  "level": "L4",
+  "transport": "websocket",
+  "steps": [
+    {
+      "id": "create_session",
+      "protocol": "http",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "Hello" }] }
+      },
+      "expect": { "status": 200 },
+      "extract": { "session_id": "$.sbp.session_id", "session_token": "headers.x-session-token" }
+    },
+    {
+      "id": "attach_with_unknown_fields",
+      "protocol": "websocket",
+      "connect": "/v1/sbp/ws/${session_id}",
+      "send": {
+        "type": "ATTACH_SESSION",
+        "session_id": "${session_id}",
+        "session_token": "${session_token}",
+        "surface_context": {
+          "device_type": "iot",
+          "unknown_future_capability": "some-value",
+          "another_new_field": { "nested": true }
+        }
+      },
+      "expect_receive": { "type": "SESSION_ATTACHED" },
+      "note": "Server MUST NOT close or error due to unknown SurfaceContext fields"
+    }
+  ]
+}

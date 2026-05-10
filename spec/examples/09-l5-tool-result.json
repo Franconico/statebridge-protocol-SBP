@@ -1,0 +1,13 @@
+{
+  "_comment": "L5 — TOOL_RESULT WebSocket frame sent by the surface back to the gateway. SPEC §10.3 and §11.1. The surface took the photo and returns it. The gateway delivers it to the LLM as a tool response.",
+  "type": "TOOL_RESULT",
+  "call_id": "b8c9d0e1-f2a3-4567-bcde-678901234567",
+  "result": {
+    "mime_type": "image/jpeg",
+    "data_url":  "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...",
+    "width":     4032,
+    "height":    3024,
+    "taken_at":  "2026-05-10T15:30:00Z"
+  },
+  "error": null
+}

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello SBP — browser attach example</title>
+  <style>
+    body { font-family: monospace; max-width: 800px; margin: 2em auto; padding: 0 1em; }
+    #log  { background: #111; color: #0f0; padding: 1em; height: 400px;
+            overflow-y: auto; white-space: pre-wrap; border-radius: 6px; }
+    .controls { display: flex; gap: 0.5em; margin-bottom: 1em; flex-wrap: wrap; }
+    input, button { padding: 0.4em 0.8em; font-family: monospace; }
+    input { flex: 1; min-width: 200px; }
+  </style>
+</head>
+<body>
+<h2>Hello SBP — browser WebSocket demo</h2>
+<p>
+  This page demonstrates attaching a browser surface to an SBP server.
+  Point <code>sbp-server start</code> at <code>http://localhost:8080</code>
+  and fill in the session details below.
+</p>
+
+<div class="controls">
+  <input id="serverUrl"    placeholder="wss://localhost:8080/v1/sbp/ws" value="ws://localhost:8080/v1/sbp/ws">
+  <input id="sessionId"   placeholder="session-uuid">
+  <input id="sessionToken" placeholder="session-token">
+</div>
+<div class="controls">
+  <button onclick="attach()">Attach Surface</button>
+  <button onclick="detach()">Detach</button>
+  <button onclick="clearLog()">Clear log</button>
+</div>
+
+<div id="log">Waiting to attach...\n</div>
+
+<script type="module">
+  // In production, import from npm: import { SBPClient, MCPBridge } from "@statebridge/sbp-client"
+  // For this standalone demo we implement the minimal protocol inline.
+
+  let ws = null;
+
+  function log(msg) {
+    const el = document.getElementById("log");
+    el.textContent += `[${new Date().toISOString().substring(11, 23)}] ${msg}\n`;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  window.clearLog = () => { document.getElementById("log").textContent = ""; };
+
+  window.attach = () => {
+    const serverUrl    = document.getElementById("serverUrl").value.trim();
+    const sessionId    = document.getElementById("sessionId").value.trim();
+    const sessionToken = document.getElementById("sessionToken").value.trim();
+
+    if (!sessionId || !sessionToken) {
+      log("ERROR: Please fill in session ID and session token.");
+      return;
+    }
+
+    if (ws) { ws.close(); ws = null; }
+
+    const url = `${serverUrl}/${sessionId}`;
+    log(`Connecting to ${url}…`);
+    ws = new WebSocket(url);
+
+    ws.onopen = () => {
+      log("WebSocket open — sending ATTACH_SESSION");
+      ws.send(JSON.stringify({
+        type: "ATTACH_SESSION",
+        session_id: sessionId,
+        session_token: sessionToken,
+        surface_context: {
+          device_type: "browser",
+          ui_capabilities: ["markdown"],
+          locale: navigator.language || "en",
+          mcp_tools: [],  // register tools here for L5
+        },
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      let frame;
+      try { frame = JSON.parse(event.data); } catch { return; }
+
+      switch (frame.type) {
+        case "SESSION_ATTACHED":
+          log(`✓ SESSION_ATTACHED sbp_version=${frame.sbp_version} device=${frame.device_type} queued_turns=${frame.queued_turns}`);
+          break;
+        case "SESSION_NOT_FOUND":
+          log(`✗ SESSION_NOT_FOUND: ${frame.session_id}`);
+          break;
+        case "FORBIDDEN":
+          log(`✗ FORBIDDEN: ${frame.detail}`);
+          break;
+        case "PROTOCOL_ERROR":
+          log(`✗ PROTOCOL_ERROR: ${frame.detail}`);
+          break;
+        case "TETHER_TURN":
+          log(`← TETHER_TURN [${frame.turn.role}]: ${frame.turn.content}`);
+          break;
+        case "TURN_CHUNK":
+          process.stdout ? process.stdout.write(frame.chunk) : log(`← chunk: ${frame.chunk}`);
+          break;
+        case "TURN_COMPLETE":
+          log(`← TURN_COMPLETE step=${frame.step} model=${frame.model}`);
+          break;
+        case "TOOL_CALL":
+          log(`← TOOL_CALL call_id=${frame.call_id} tool=${frame.tool_name}`);
+          // Echo back a placeholder result (no real tools registered in this demo)
+          ws.send(JSON.stringify({
+            type: "TOOL_RESULT",
+            call_id: frame.call_id,
+            result: { demo: "No real tool registered in this demo surface." },
+          }));
+          break;
+        case "PING":
+          ws.send(JSON.stringify({ type: "PONG" }));
+          break;
+        default:
+          log(`← unknown frame: ${JSON.stringify(frame)}`);
+      }
+    };
+
+    ws.onerror = () => log("WebSocket error");
+    ws.onclose = (e) => log(`WebSocket closed (code=${e.code})`);
+  };
+
+  window.detach = () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "DETACH" }));
+      ws.close(1000);
+      log("→ DETACH sent");
+    }
+    ws = null;
+  };
+</script>
+</body>
+</html>

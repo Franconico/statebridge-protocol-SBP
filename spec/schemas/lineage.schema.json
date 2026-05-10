@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://statebridge-protocol.github.io/sbp/schemas/lineage.schema.json",
+  "title": "SBP Session Lineage",
+  "description": "Response from GET /v1/sbp/sessions/{id}/lineage — the full family tree of a session.",
+  "type": "object",
+  "required": ["session_id", "exports", "outgoing_handoffs", "incoming_handoffs", "forks"],
+  "properties": {
+    "session_id": { "type": "string", "format": "uuid" },
+    "exports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "export_id": { "type": "string", "format": "uuid" },
+          "expires_at": { "type": "string", "format": "date-time" },
+          "imported_at": { "type": ["string", "null"], "format": "date-time" },
+          "import_session_id": { "type": ["string", "null"], "format": "uuid" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "outgoing_handoffs": {
+      "type": "array",
+      "description": "Sessions this session handed off to.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "handoff_id": { "type": "string", "format": "uuid" },
+          "to_session_id": { "type": ["string", "null"], "format": "uuid" },
+          "to_agent": { "type": "string" },
+          "status": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "incoming_handoffs": {
+      "type": "array",
+      "description": "Sessions that handed off to this session.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "handoff_id": { "type": "string", "format": "uuid" },
+          "from_session_id": { "type": "string", "format": "uuid" },
+          "from_agent": { "type": "string" },
+          "status": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "forks": {
+      "type": "array",
+      "description": "Sessions forked from this session.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "fork_id": { "type": "string", "format": "uuid" },
+          "fork_session_id": { "type": "string", "format": "uuid" },
+          "fork_label": { "type": ["string", "null"] },
+          "fork_point_msg": { "type": ["integer", "null"] },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "origin": {
+      "type": ["object", "null"],
+      "description": "If this session is itself a fork, this is its origin.",
+      "properties": {
+        "origin_session_id": { "type": "string", "format": "uuid" },
+        "fork_label": { "type": ["string", "null"] },
+        "fork_point_msg": { "type": ["integer", "null"] },
+        "forked_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "description": "L3: Fork MUST create an independent parallel branch with the same history",
+  "level": "L3",
+  "steps": [
+    {
+      "id": "create",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "Checkpoint" }] }
+      },
+      "expect": { "status": 200 },
+      "extract": { "session_id": "$.sbp.session_id" }
+    },
+    {
+      "id": "fork",
+      "request": {
+        "method": "POST",
+        "path": "/v1/sbp/sessions/${session_id}/fork",
+        "body": { "label": "experiment-A" }
+      },
+      "expect": {
+        "status": 201,
+        "body_contains": {
+          "fork_session_id": { "type": "string", "format": "uuid", "not_equal": "${session_id}" },
+          "origin_session_id": "${session_id}",
+          "fork_label": "experiment-A"
+        }
+      }
+    }
+  ]
+}

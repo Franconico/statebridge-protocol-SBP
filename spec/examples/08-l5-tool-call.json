@@ -1,0 +1,11 @@
+{
+  "_comment": "L5 — TOOL_CALL WebSocket frame sent by the gateway to the surface. SPEC §10.2 and §11.2. The agent requested a photo; the gateway routes it to the attached mobile surface.",
+  "type": "TOOL_CALL",
+  "call_id": "b8c9d0e1-f2a3-4567-bcde-678901234567",
+  "tool_name": "camera",
+  "tool_input": {
+    "mode": "photo",
+    "facing": "back",
+    "quality": "high"
+  }
+}

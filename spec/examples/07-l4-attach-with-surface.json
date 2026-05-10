@@ -1,0 +1,14 @@
+{
+  "_comment": "L4 — ATTACH_SESSION WebSocket frame with full SurfaceContext. SPEC §9 and §11.1. Send this as the first message after opening ws://host/v1/sbp/ws/<session_id>.",
+  "type": "ATTACH_SESSION",
+  "session_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "session_token": "tok_mobile_abc456",
+  "surface_context": {
+    "device_type": "mobile",
+    "max_output_tokens": 300,
+    "ui_capabilities": ["markdown", "images", "streaming"],
+    "locale": "en-US",
+    "surface_id": "device-fingerprint-iphone15-uuid",
+    "mcp_tools": ["camera", "gps", "contacts"]
+  }
+}

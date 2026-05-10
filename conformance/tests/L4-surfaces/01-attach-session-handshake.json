@@ -1,0 +1,40 @@
+{
+  "description": "L4: ATTACH_SESSION MUST result in SESSION_ATTACHED with sbp_version='1.2'",
+  "level": "L4",
+  "transport": "websocket",
+  "steps": [
+    {
+      "id": "create_session",
+      "protocol": "http",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "Hello" }] }
+      },
+      "expect": { "status": 200 },
+      "extract": { "session_id": "$.sbp.session_id", "session_token": "headers.x-session-token" }
+    },
+    {
+      "id": "attach",
+      "protocol": "websocket",
+      "connect": "/v1/sbp/ws/${session_id}",
+      "send": {
+        "type": "ATTACH_SESSION",
+        "session_id": "${session_id}",
+        "session_token": "${session_token}",
+        "surface_context": {
+          "device_type": "mobile",
+          "ui_capabilities": ["markdown"],
+          "locale": "en-US",
+          "mcp_tools": ["camera", "contacts"]
+        }
+      },
+      "expect_receive": {
+        "type": "SESSION_ATTACHED",
+        "session_id": "${session_id}",
+        "sbp_version": "1.2",
+        "device_type": "mobile"
+      }
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Node / TypeScript
+node_modules/
+dist/
+*.js.map
+.npmrc
+
+# Jekyll / GitHub Pages
+_site/
+.jekyll-cache/
+.sass-cache/
+Gemfile.lock
+
+# Secrets — never commit these
+.env
+*.env
+*.secret
+jwt_secret.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo

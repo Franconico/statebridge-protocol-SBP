@@ -1,0 +1,53 @@
+{
+  "description": "L5: Buffered TETHER_TURN frames MUST be drained on ATTACH_SESSION with correct queued_turns count",
+  "level": "L5",
+  "transport": "websocket",
+  "steps": [
+    {
+      "id": "create_session",
+      "protocol": "http",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "Hello" }] }
+      },
+      "expect": { "status": 200 },
+      "extract": { "session_id": "$.sbp.session_id", "session_token": "headers.x-session-token" }
+    },
+    {
+      "id": "enqueue_tether_turns",
+      "protocol": "http",
+      "note": "Test helper endpoint to pre-load the Tether queue (test-only; not in the public API)",
+      "request": {
+        "method": "POST",
+        "path": "/v1/sbp/sessions/${session_id}/_test/tether",
+        "body": {
+          "turns": [
+            { "type": "TETHER_TURN", "session_id": "${session_id}", "turn": { "role": "assistant", "content": "Reply 1" } },
+            { "type": "TETHER_TURN", "session_id": "${session_id}", "turn": { "role": "assistant", "content": "Reply 2" } }
+          ]
+        }
+      },
+      "expect": { "status": 200 }
+    },
+    {
+      "id": "attach",
+      "protocol": "websocket",
+      "connect": "/v1/sbp/ws/${session_id}",
+      "send": {
+        "type": "ATTACH_SESSION",
+        "session_id": "${session_id}",
+        "session_token": "${session_token}",
+        "surface_context": { "device_type": "mobile" }
+      },
+      "expect_receive_sequence": [
+        { "type": "SESSION_ATTACHED", "queued_turns": 2 },
+        { "type": "TETHER_TURN" },
+        { "type": "TETHER_TURN" }
+      ],
+      "expect_after_drain": {
+        "note": "Tether queue MUST be empty after drain — a subsequent attach MUST see queued_turns=0"
+      }
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://statebridge-protocol.github.io/sbp/schemas/completions-response.schema.json",
+  "title": "SBP Chat Completions Response",
+  "description": "OpenAI-compatible response body with the 'sbp' metadata namespace. HTTP 200 for a completed turn; HTTP 202 when a suspended session is found.",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "object": { "type": "string" },
+    "created": { "type": "integer" },
+    "model": { "type": "string" },
+    "choices": { "type": "array" },
+    "usage": { "type": "object" },
+    "sbp": { "$ref": "#/$defs/SBPResponseMeta" }
+  },
+  "$defs": {
+    "SBPResponseMeta": {
+      "type": "object",
+      "required": ["session_id"],
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Stable session identifier. Persist this to resume the session later."
+        },
+        "snapshot_id": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "ID of the snapshot taken this turn, if any."
+        },
+        "resume_available": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when an HTTP 202 is returned — a suspended session was found."
+        },
+        "resume_prompt": {
+          "type": ["string", "null"],
+          "description": "Human-readable hint of what the agent was last doing. Suitable for displaying to the user before they confirm a resume."
+        },
+        "last_checkpoint": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of the last successful snapshot."
+        },
+        "step_count": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Number of turns completed in this session."
+        },
+        "cost_usd": {
+          "type": ["number", "null"],
+          "description": "Estimated cost of this turn in USD. OPTIONAL — implementation-defined."
+        },
+        "model_routed_to": {
+          "type": ["string", "null"],
+          "description": "The actual model used for this turn (may differ from the requested model if routing occurred)."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

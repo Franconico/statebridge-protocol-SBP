@@ -1,0 +1,19 @@
+{
+  "description": "L1: The 'sbp' request namespace MUST NOT be forwarded to the upstream LLM",
+  "level": "L1",
+  "note": "Verify by inspecting the request the server sends upstream. The 'sbp' key must be absent from the proxied body.",
+  "request": {
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "headers": { "Content-Type": "application/json" },
+    "body": {
+      "model": "gpt-4o",
+      "messages": [{ "role": "user", "content": "Hello" }],
+      "sbp": { "force_new_session": false }
+    }
+  },
+  "expect": {
+    "status": 200,
+    "upstream_body_excludes": ["sbp"]
+  }
+}

@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sbp-server-reference"
+version = "1.2.0"
+description = "State Bridge Protocol (SBP) v1.2 reference server — L5 conformant, in-memory backend"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+keywords = ["sbp", "statebridge", "ai", "agents", "protocol", "websocket"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "httpx>=0.27",         # for LLM router (pass-through to any OpenAI-compatible API)
+  "pydantic>=2.7",
+  "python-jose[cryptography]>=3.3",   # JWT sign/verify (HS256)
+  "python-dotenv>=1.0",
+  "typer>=0.12",         # CLI entrypoint (sbp-server start)
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "pytest-asyncio>=0.23",
+  "httpx>=0.27",
+  "websockets>=12",
+  "ruff>=0.4",
+  "mypy>=1.10",
+]
+
+[project.scripts]
+sbp-server = "sbp_server.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["sbp_server"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

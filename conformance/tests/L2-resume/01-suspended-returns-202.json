@@ -1,0 +1,45 @@
+{
+  "description": "L2: A suspended session MUST return HTTP 202 with sbp.resume_available=true",
+  "level": "L2",
+  "steps": [
+    {
+      "id": "create",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "Hello" }] }
+      },
+      "expect": { "status": 200 },
+      "extract": {
+        "session_id": "$.sbp.session_id",
+        "session_token": "headers.x-session-token"
+      }
+    },
+    {
+      "id": "suspend",
+      "note": "Suspend the session via test helper or direct API. In the runner this is done via PATCH /v1/sbp/sessions/{session_id}/status (test-only endpoint).",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/sbp/sessions/${session_id}/status",
+        "body": { "status": "suspended" }
+      },
+      "expect": { "status": 200 }
+    },
+    {
+      "id": "resume_check",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": { "X-Session-Token": "${session_token}" },
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "continue" }] }
+      },
+      "expect": {
+        "status": 202,
+        "body_contains": {
+          "sbp.resume_available": true,
+          "sbp.session_id": "${session_id}"
+        }
+      }
+    }
+  ]
+}

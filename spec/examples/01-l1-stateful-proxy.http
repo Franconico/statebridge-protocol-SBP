@@ -1,0 +1,54 @@
+### L1 — Stateful Proxy
+### SPEC §6 — any LLM-compatible model string is valid in the "model" field.
+### SBP is model-agnostic: swap "gpt-4o" for "claude-opus-4-7", "llama-4-scout",
+### "deepseek-v3", or any other model your router supports.
+
+POST /v1/chat/completions HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+Authorization: Bearer <your-api-key>
+
+{
+  "model": "gpt-4o",
+  "messages": [
+    { "role": "user", "content": "Plan a 3-day trip to Tokyo." }
+  ],
+  "sbp": {
+    "force_new_session": false,
+    "checkpoint_every": 1,
+    "memory_retrieval": true
+  }
+}
+
+### Expected response — HTTP 200
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "id": "chatcmpl-abc123",
+  "object": "chat.completion",
+  "created": 1715000000,
+  "model": "gpt-4o",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Here's a 3-day Tokyo itinerary:\n\n**Day 1:** Shinjuku & Harajuku..."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": { "prompt_tokens": 20, "completion_tokens": 200, "total_tokens": 220 },
+  "sbp": {
+    "session_id":       "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "snapshot_id":      "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "resume_available": false,
+    "resume_prompt":    null,
+    "last_checkpoint":  "2026-05-10T15:00:00Z",
+    "step_count":       1,
+    "cost_usd":         0.0032,
+    "model_routed_to":  "gpt-4o"
+  }
+}

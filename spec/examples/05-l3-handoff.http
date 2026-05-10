@@ -1,0 +1,28 @@
+### L3 — Handoff: Transfer context to a different agent
+### SPEC §8.6
+### Use case: the planning agent finishes; it hands off to the booking agent.
+### The booking agent receives the full context with a bridge message.
+
+POST /v1/sbp/sessions/a1b2c3d4-e5f6-7890-abcd-ef1234567890/handoff HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+Authorization: Bearer <your-api-key>
+
+{
+  "to_agent_id": "booking-agent-prod",
+  "handoff_message": "The user has approved a 3-day Tokyo itinerary. Please proceed to book flights (SFO→NRT, May 20–23) and hotel (Shinjuku area, budget: $200/night). User preferences: window seat, vegetarian meals.",
+  "reason": "Planning phase complete; booking phase begins."
+}
+
+### Response — HTTP 201
+
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "source_session_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "new_session_id":    "e5f6a7b8-c9d0-1234-efab-345678901234",
+  "new_session_token": "tok_booking_xyz789",
+  "to_agent_id":       "booking-agent-prod",
+  "export_id":         "f6a7b8c9-d0e1-2345-fab c-456789012345"
+}

@@ -1,0 +1,29 @@
+title: State Bridge Protocol (SBP)
+description: "The Northbound protocol for AI agents — durable state across disconnects, devices, and time. Model-agnostic. Server-agnostic."
+url: "https://statebridge-protocol.github.io"
+baseurl: "/sbp"
+repository: "statebridge-protocol/sbp"
+
+theme: minima
+
+header_pages:
+  - index.md
+  - why-sbp.md
+  - getting-started.md
+
+plugins:
+  - jekyll-relative-links
+  - jekyll-optional-front-matter
+  - jekyll-readme-index
+  - jekyll-default-layout
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

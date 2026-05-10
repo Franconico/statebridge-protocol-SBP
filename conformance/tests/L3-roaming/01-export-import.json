@@ -1,0 +1,49 @@
+{
+  "description": "L3: Export a session → import the token → new session with restored messages",
+  "level": "L3",
+  "steps": [
+    {
+      "id": "create",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "Remember: the answer is 42." }] }
+      },
+      "expect": { "status": 200 },
+      "extract": { "session_id": "$.sbp.session_id" }
+    },
+    {
+      "id": "export",
+      "request": {
+        "method": "POST",
+        "path": "/v1/sbp/sessions/${session_id}/export",
+        "body": { "ttl_seconds": 3600, "label": "conformance-test" }
+      },
+      "expect": {
+        "status": 201,
+        "body_contains": {
+          "roaming_token": { "type": "string", "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$" },
+          "session_id": "${session_id}",
+          "export_id": { "type": "string", "format": "uuid" }
+        }
+      },
+      "extract": { "token": "$.roaming_token", "export_id": "$.export_id" }
+    },
+    {
+      "id": "import",
+      "request": {
+        "method": "POST",
+        "path": "/v1/sbp/sessions/import",
+        "body": { "roaming_token": "${token}" }
+      },
+      "expect": {
+        "status": 201,
+        "body_contains": {
+          "new_session_id": { "type": "string", "format": "uuid", "not_equal": "${session_id}" },
+          "origin_export_id": "${export_id}",
+          "messages_restored": { "type": "number", "min": 1 }
+        }
+      }
+    }
+  ]
+}

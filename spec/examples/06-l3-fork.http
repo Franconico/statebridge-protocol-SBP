@@ -1,0 +1,28 @@
+### L3 — Fork: Create a parallel branch for A/B exploration
+### SPEC §8.7
+### Use case: the agent has two promising approaches to a problem.
+### Fork from the current checkpoint; explore both independently.
+
+POST /v1/sbp/sessions/a1b2c3d4-e5f6-7890-abcd-ef1234567890/fork HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+Authorization: Bearer <your-api-key>
+
+{
+  "label": "Budget route via Seoul layover"
+}
+
+### Response — HTTP 201
+### The fork shares all history through the fork point.
+### Both sessions diverge independently from here.
+
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "fork_session_id":    "a7b8c9d0-e1f2-3456-abcd-567890123456",
+  "fork_session_token": "tok_fork_budget123",
+  "fork_label":         "Budget route via Seoul layover",
+  "origin_session_id":  "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "fork_point_step":    12
+}

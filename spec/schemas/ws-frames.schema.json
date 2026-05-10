@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://statebridge-protocol.github.io/sbp/schemas/ws-frames.schema.json",
+  "title": "SBP WebSocket Frames",
+  "description": "All 13 SBP WebSocket frame types as a discriminated union on the 'type' field. Unknown types MUST be ignored for forward compatibility.",
+  "oneOf": [
+    { "$ref": "#/$defs/AttachSession" },
+    { "$ref": "#/$defs/Detach" },
+    { "$ref": "#/$defs/ToolResult" },
+    { "$ref": "#/$defs/Pong" },
+    { "$ref": "#/$defs/SessionAttached" },
+    { "$ref": "#/$defs/SessionNotFound" },
+    { "$ref": "#/$defs/Forbidden" },
+    { "$ref": "#/$defs/ProtocolError" },
+    { "$ref": "#/$defs/TetherTurn" },
+    { "$ref": "#/$defs/TurnChunk" },
+    { "$ref": "#/$defs/TurnComplete" },
+    { "$ref": "#/$defs/ToolCall" },
+    { "$ref": "#/$defs/Ping" }
+  ],
+  "$defs": {
+    "AttachSession": {
+      "type": "object",
+      "required": ["type", "session_id", "session_token"],
+      "properties": {
+        "type": { "const": "ATTACH_SESSION" },
+        "session_id": { "type": "string", "format": "uuid" },
+        "session_token": { "type": "string" },
+        "surface_context": { "$ref": "surface-context.schema.json" }
+      }
+    },
+    "Detach": {
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "DETACH" } }
+    },
+    "ToolResult": {
+      "type": "object",
+      "required": ["type", "call_id"],
+      "properties": {
+        "type": { "const": "TOOL_RESULT" },
+        "call_id": { "type": "string", "format": "uuid" },
+        "result": { "type": "object" },
+        "error": { "type": ["string", "null"] }
+      }
+    },
+    "Pong": {
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "PONG" } }
+    },
+    "SessionAttached": {
+      "type": "object",
+      "required": ["type", "session_id", "queued_turns", "sbp_version"],
+      "properties": {
+        "type": { "const": "SESSION_ATTACHED" },
+        "session_id": { "type": "string", "format": "uuid" },
+        "surface_id": { "type": ["string", "null"] },
+        "device_type": { "type": "string" },
+        "queued_turns": { "type": "integer", "minimum": 0 },
+        "mcp_tools_registered": { "type": "array", "items": { "type": "string" } },
+        "sbp_version": { "type": "string", "examples": ["1.2"] },
+        "sbp_level": { "type": "string", "examples": ["L1", "L2", "L3", "L4", "L5"] }
+      }
+    },
+    "SessionNotFound": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "SESSION_NOT_FOUND" },
+        "detail": { "type": "string" }
+      }
+    },
+    "Forbidden": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "FORBIDDEN" },
+        "detail": { "type": "string" }
+      }
+    },
+    "ProtocolError": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "PROTOCOL_ERROR" },
+        "detail": { "type": "string" }
+      }
+    },
+    "TetherTurn": {
+      "type": "object",
+      "required": ["type", "turn_index", "role", "content"],
+      "properties": {
+        "type": { "const": "TETHER_TURN" },
+        "turn_index": { "type": "integer", "minimum": 0 },
+        "role": { "type": "string", "enum": ["assistant", "user", "tool"] },
+        "content": { "type": ["string", "null"] },
+        "model_used": { "type": ["string", "null"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "TurnChunk": {
+      "type": "object",
+      "required": ["type", "chunk_id", "delta"],
+      "properties": {
+        "type": { "const": "TURN_CHUNK" },
+        "chunk_id": { "type": "string", "format": "uuid" },
+        "delta": { "type": "string" }
+      }
+    },
+    "TurnComplete": {
+      "type": "object",
+      "required": ["type", "chunk_id"],
+      "properties": {
+        "type": { "const": "TURN_COMPLETE" },
+        "chunk_id": { "type": "string", "format": "uuid" }
+      }
+    },
+    "ToolCall": {
+      "type": "object",
+      "required": ["type", "call_id", "tool_name", "tool_input"],
+      "properties": {
+        "type": { "const": "TOOL_CALL" },
+        "call_id": { "type": "string", "format": "uuid" },
+        "tool_name": { "type": "string" },
+        "tool_input": { "type": "object" }
+      }
+    },
+    "Ping": {
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "PING" } }
+    }
+  }
+}

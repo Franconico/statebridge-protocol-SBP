@@ -1,0 +1,28 @@
+### L3 — Roaming: Export a session into a portable signed token
+### SPEC §8.3
+### Use case: user finished planning on their laptop, wants to continue on mobile.
+### The token can be shared via QR code, push notification, or any channel.
+
+POST /v1/sbp/sessions/a1b2c3d4-e5f6-7890-abcd-ef1234567890/export HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+Authorization: Bearer <your-api-key>
+
+{
+  "ttl_seconds": 86400,
+  "label": "Tokyo trip planning — continue on mobile"
+}
+
+### Response — HTTP 201
+
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "export_id":     "c3d4e5f6-a7b8-9012-cdef-123456789012",
+  "roaming_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjM2Q0ZTVmNi1hN2I4LTkwMTItY2RlZi0xMjM0NTY3ODkwMTIiLCJzaWQiOiJhMWIyYzNkNC1lNWY2LTc4OTAtYWJjZC1lZjEyMzQ1Njc4OTAiLCJpYXQiOjE3MTUwMDAwMDAsImV4cCI6MTcxNTA4NjQwMH0.<signature>",
+  "expires_at":    "2026-05-11T15:00:00Z",
+  "bundle_hash":   "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "message_count": 24,
+  "label":         "Tokyo trip planning — continue on mobile"
+}

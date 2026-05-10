@@ -1,0 +1,30 @@
+name: Reference server tests
+
+on:
+  push:
+    paths:
+      - "reference/server-python/**"
+      - "spec/**"
+  pull_request:
+    paths:
+      - "reference/server-python/**"
+      - "spec/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: reference/server-python
+        run: pip install -e ".[dev]"
+
+      - name: Run tests
+        working-directory: reference/server-python
+        run: pytest -v --tb=short

@@ -1,0 +1,15 @@
+{
+  "description": "L3: A token with an invalid signature MUST be rejected with 422",
+  "level": "L3",
+  "steps": [
+    {
+      "id": "import_tampered",
+      "request": {
+        "method": "POST",
+        "path": "/v1/sbp/sessions/import",
+        "body": { "roaming_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmYWtlIiwic2lkIjoiZmFrZSIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjo5OTk5OTk5OTk5fQ.invalidsignature" }
+      },
+      "expect": { "status": 422 }
+    }
+  ]
+}

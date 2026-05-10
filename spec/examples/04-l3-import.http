@@ -1,0 +1,35 @@
+### L3 — Roaming: Import a roaming token into a new session
+### SPEC §8.4
+### The roaming_token from example 03 is presented to the mobile gateway.
+### The gateway may run on a completely different server, different LLM router,
+### different database — SBP is server-agnostic. The session is fully restored.
+
+POST /v1/sbp/sessions/import HTTP/1.1
+Host: mobile-gateway.example.com
+Content-Type: application/json
+Authorization: Bearer <your-api-key>
+
+{
+  "roaming_token":   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...<signature>",
+  "target_agent_id": null,
+  "allow_reuse":     false
+}
+
+### Response — HTTP 201
+### A new session is created with all 24 messages replayed,
+### memory restored (if schema_id is recognized), and state snapshot rehydrated.
+
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "session_id":    "d4e5f6a7-b8c9-0123-defa-234567890123",
+  "session_token": "tok_mobile_abc456",
+  "agent_id":      "agent_tokyo_planner",
+  "step_count":    24,
+  "message_count": 24,
+  "provenance": {
+    "imported_from": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "export_id":     "c3d4e5f6-a7b8-9012-cdef-123456789012"
+  }
+}

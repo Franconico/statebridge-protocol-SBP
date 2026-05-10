@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://statebridge-protocol.github.io/sbp/schemas/roaming-token.schema.json",
+  "title": "SBP Roaming Token JWT Payload",
+  "description": "The decoded payload of a Roaming Token JWT (HS256). The full token is a compact JWT: base64url(header).base64url(payload).base64url(signature).",
+  "type": "object",
+  "required": ["sub", "sid", "iat", "exp"],
+  "properties": {
+    "sub": {
+      "type": "string",
+      "format": "uuid",
+      "description": "export_id — references the stored bundle in state_exports."
+    },
+    "sid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Source session_id."
+    },
+    "iat": {
+      "type": "integer",
+      "description": "Issued-at Unix timestamp."
+    },
+    "exp": {
+      "type": "integer",
+      "description": "Expiry Unix timestamp. Maximum 7 days after iat (604800 seconds)."
+    }
+  },
+  "additionalProperties": false
+}

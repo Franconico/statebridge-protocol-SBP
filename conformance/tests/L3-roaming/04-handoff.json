@@ -1,0 +1,36 @@
+{
+  "description": "L3: Handoff MUST create a new session under the target agent and suspend the source",
+  "level": "L3",
+  "steps": [
+    {
+      "id": "create",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "Start task" }] }
+      },
+      "expect": { "status": 200 },
+      "extract": { "session_id": "$.sbp.session_id" }
+    },
+    {
+      "id": "handoff",
+      "request": {
+        "method": "POST",
+        "path": "/v1/sbp/sessions/${session_id}/handoff",
+        "body": {
+          "to_agent_id": "agent-beta",
+          "handoff_message": "Please continue the analysis.",
+          "reason": "Specialisation handoff"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "body_contains": {
+          "new_session_id": { "type": "string", "format": "uuid", "not_equal": "${session_id}" },
+          "from_session_id": "${session_id}",
+          "to_agent_id": "agent-beta"
+        }
+      }
+    }
+  ]
+}

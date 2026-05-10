@@ -1,0 +1,35 @@
+{
+  "description": "L2: force_new_session=true MUST bypass the resume check and create a new session",
+  "level": "L2",
+  "steps": [
+    {
+      "id": "first",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "Hello" }] }
+      },
+      "expect": { "status": 200 },
+      "extract": { "session_token": "headers.x-session-token", "sid1": "$.sbp.session_id" }
+    },
+    {
+      "id": "force_new",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": { "X-Session-Token": "${session_token}" },
+        "body": {
+          "model": "gpt-4o",
+          "messages": [{ "role": "user", "content": "New task" }],
+          "sbp": { "force_new_session": true }
+        }
+      },
+      "expect": {
+        "status": 200,
+        "body_contains": {
+          "sbp.session_id": { "not_equal": "${sid1}" }
+        }
+      }
+    }
+  ]
+}

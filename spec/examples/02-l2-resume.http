@@ -1,0 +1,42 @@
+### L2 — Resume: HTTP 202 when a suspended session is found
+### SPEC §6.3 and §7.4
+### The session was created on a desktop browser, which then closed.
+### The user opens the app on their phone and sends a message.
+### The server finds the suspended session and returns HTTP 202 instead of
+### processing the request — giving the client a chance to offer a resume.
+
+POST /v1/chat/completions HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+Authorization: Bearer <your-api-key>
+
+{
+  "model": "claude-opus-4-7",
+  "messages": [
+    { "role": "user", "content": "What is the capital of France?" }
+  ],
+  "sbp": {
+    "force_new_session": false
+  }
+}
+
+### Response — HTTP 202 Resume Available
+### The model field can be any model — switching from gpt-4o to claude-opus-4-7
+### mid-session is valid. Sessions are model-agnostic.
+
+HTTP/1.1 202 Accepted
+Content-Type: application/json
+
+{
+  "sbp": {
+    "session_id":       "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "snapshot_id":      "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "resume_available": true,
+    "resume_prompt":    "You were last working on: planning a 3-day trip to Tokyo. You completed step 12.",
+    "last_checkpoint":  "2026-05-10T15:00:00Z",
+    "step_count":       12
+  }
+}
+
+### To resume, the client resends with force_new_session: false (default).
+### The server picks up the suspended session and continues from the snapshot.

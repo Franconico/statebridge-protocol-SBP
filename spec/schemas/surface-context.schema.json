@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://statebridge-protocol.github.io/sbp/schemas/surface-context.schema.json",
+  "title": "SurfaceContext",
+  "description": "Describes the connecting surface so the gateway can adapt its output. Sent inside the ATTACH_SESSION WebSocket frame. All fields are OPTIONAL; servers MUST tolerate missing or unknown values.",
+  "type": "object",
+  "properties": {
+    "device_type": {
+      "type": "string",
+      "description": "Well-known device type or any future string value. Unknown values MUST be treated as 'unknown'.",
+      "examples": ["mobile", "desktop", "iot", "browser", "voice", "unknown"]
+    },
+    "max_output_tokens": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Output length hint. null means no limit. Servers SHOULD respect this as a target, not a hard cap."
+    },
+    "ui_capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Capabilities the surface can render. Well-known values: 'markdown', 'tables', 'images', 'audio', 'streaming'. Unknown values MUST be ignored.",
+      "examples": [["markdown", "streaming"], ["audio"], []]
+    },
+    "locale": {
+      "type": "string",
+      "description": "BCP-47 locale code for language and formatting preferences.",
+      "default": "en",
+      "examples": ["en", "en-US", "es-MX", "ja-JP"]
+    },
+    "surface_id": {
+      "type": ["string", "null"],
+      "description": "Optional stable device fingerprint. Allows the server to recognize returning surfaces and correlate session history."
+    },
+    "mcp_tools": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "MCP tool names exposed by this surface. The gateway MAY inject corresponding tool schemas into the LLM context and WILL route TOOL_CALL frames for these tools to the surface.",
+      "examples": [["camera", "gps", "contacts"], ["file_picker"], []]
+    }
+  },
+  "additionalProperties": true
+}

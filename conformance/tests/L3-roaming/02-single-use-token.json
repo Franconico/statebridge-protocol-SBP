@@ -1,0 +1,44 @@
+{
+  "description": "L3: Roaming token MUST be single-use — second import MUST return 410 Gone",
+  "level": "L3",
+  "steps": [
+    {
+      "id": "create",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "Hello" }] }
+      },
+      "expect": { "status": 200 },
+      "extract": { "session_id": "$.sbp.session_id" }
+    },
+    {
+      "id": "export",
+      "request": {
+        "method": "POST",
+        "path": "/v1/sbp/sessions/${session_id}/export",
+        "body": { "ttl_seconds": 3600 }
+      },
+      "expect": { "status": 201 },
+      "extract": { "token": "$.roaming_token" }
+    },
+    {
+      "id": "import_1",
+      "request": {
+        "method": "POST",
+        "path": "/v1/sbp/sessions/import",
+        "body": { "roaming_token": "${token}" }
+      },
+      "expect": { "status": 201 }
+    },
+    {
+      "id": "import_2_must_fail",
+      "request": {
+        "method": "POST",
+        "path": "/v1/sbp/sessions/import",
+        "body": { "roaming_token": "${token}" }
+      },
+      "expect": { "status": 410 }
+    }
+  ]
+}

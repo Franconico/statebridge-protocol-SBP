@@ -1,0 +1,17 @@
+{
+  "description": "L1: model field is passed through verbatim — server MUST NOT hard-code a model",
+  "level": "L1",
+  "request": {
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "headers": { "Content-Type": "application/json" },
+    "body": {
+      "model": "claude-opus-4-7",
+      "messages": [{ "role": "user", "content": "Hello" }]
+    }
+  },
+  "expect": {
+    "status_oneof": [200, 400, 422, 503],
+    "note": "Status depends on whether the configured LLM provider supports this model. What MUST NOT happen is the server silently substituting a different model without advertising it in sbp.model_routed_to."
+  }
+}

@@ -1,0 +1,61 @@
+name: Validate schemas and examples
+
+on:
+  push:
+    paths:
+      - "spec/**"
+  pull_request:
+    paths:
+      - "spec/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install ajv-cli
+        run: npm install -g ajv-cli ajv-formats
+
+      - name: Validate completions request examples
+        run: |
+          # Extract JSON from .http examples for L1
+          # (The .http files are HTTP wire format; JSON examples validate directly)
+          ajv validate \
+            -s spec/schemas/surface-context.schema.json \
+            -d spec/examples/07-l4-attach-with-surface.json \
+            --spec=draft2020 \
+            -c ajv-formats
+
+      - name: Validate WS frame examples
+        run: |
+          ajv validate \
+            -s spec/schemas/ws-frames.schema.json \
+            -d spec/examples/08-l5-tool-call.json \
+            --spec=draft2020 \
+            -c ajv-formats
+
+          ajv validate \
+            -s spec/schemas/ws-frames.schema.json \
+            -d spec/examples/09-l5-tool-result.json \
+            --spec=draft2020 \
+            -c ajv-formats
+
+      - name: Check all schemas parse as valid JSON
+        run: |
+          for f in spec/schemas/*.json; do
+            echo "Checking $f..."
+            python3 -c "import json,sys; json.load(open('$f'))" || exit 1
+          done
+
+      - name: Check all JSON examples parse as valid JSON
+        run: |
+          for f in spec/examples/*.json; do
+            echo "Checking $f..."
+            python3 -c "import json,sys; json.load(open('$f'))" || exit 1
+          done

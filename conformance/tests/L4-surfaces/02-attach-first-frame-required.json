@@ -1,0 +1,26 @@
+{
+  "description": "L4: First frame MUST be ATTACH_SESSION — any other frame type MUST result in PROTOCOL_ERROR and close 1003",
+  "level": "L4",
+  "transport": "websocket",
+  "steps": [
+    {
+      "id": "create_session",
+      "protocol": "http",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "Hello" }] }
+      },
+      "expect": { "status": 200 },
+      "extract": { "session_id": "$.sbp.session_id" }
+    },
+    {
+      "id": "wrong_first_frame",
+      "protocol": "websocket",
+      "connect": "/v1/sbp/ws/${session_id}",
+      "send": { "type": "PONG" },
+      "expect_receive": { "type": "PROTOCOL_ERROR" },
+      "expect_close_code": 1003
+    }
+  ]
+}

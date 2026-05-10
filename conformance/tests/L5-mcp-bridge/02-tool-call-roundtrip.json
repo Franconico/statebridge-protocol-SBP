@@ -1,0 +1,49 @@
+{
+  "description": "L5: TOOL_CALL frame MUST be acknowledged with TOOL_RESULT containing the same call_id",
+  "level": "L5",
+  "transport": "websocket",
+  "steps": [
+    {
+      "id": "create_session",
+      "protocol": "http",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "body": { "model": "gpt-4o", "messages": [{ "role": "user", "content": "Hello" }] }
+      },
+      "expect": { "status": 200 },
+      "extract": { "session_id": "$.sbp.session_id", "session_token": "headers.x-session-token" }
+    },
+    {
+      "id": "attach",
+      "protocol": "websocket",
+      "connect": "/v1/sbp/ws/${session_id}",
+      "send": {
+        "type": "ATTACH_SESSION",
+        "session_id": "${session_id}",
+        "session_token": "${session_token}",
+        "surface_context": {
+          "device_type": "mobile",
+          "mcp_tools": ["camera"]
+        }
+      },
+      "expect_receive": { "type": "SESSION_ATTACHED" }
+    },
+    {
+      "id": "tool_call_roundtrip",
+      "protocol": "websocket_continue",
+      "inject_server_frame": {
+        "type": "TOOL_CALL",
+        "call_id": "test-call-abc123",
+        "tool_name": "camera",
+        "tool_input": { "resolution": "high" }
+      },
+      "surface_replies": {
+        "type": "TOOL_RESULT",
+        "call_id": "test-call-abc123",
+        "result": { "image_base64": "..." }
+      },
+      "note": "call_id MUST match exactly. Servers MUST NOT route a TOOL_RESULT with an unknown call_id to an error state — forward-compatibility requires silent discard."
+    }
+  ]
+}
