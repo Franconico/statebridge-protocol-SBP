@@ -6,6 +6,9 @@ on:
     paths:
       - "docs/**"
       - "spec/**"
+      - "!docs/.gitignore"
+      - "!docs/Gemfile.lock"
+      - "!.github/workflows/**"
 
 permissions:
   contents: read
