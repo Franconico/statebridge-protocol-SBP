@@ -1,143 +1,241 @@
+# SBP Conformance Levels
+
+An SBP implementation declares a conformance level from L1 to L6. Levels are **cumulative** — an L3 implementation also satisfies L1 and L2.
+
 ---
-title: Conformance Levels
-layout: default
----
 
-# Conformance Levels
+## Overview
 
-SBP defines five conformance levels. An implementation that claims a level MUST
-satisfy all requirements for that level and all levels below it.
-
-To claim a conformance level, run the conformance suite against your server:
-
-```bash
-python conformance/runner.py --target http://localhost:8080 --level L5
-```
-
-And open a PR to add your implementation to [implementations.md](../implementations.md).
+| Level | Name | Description |
+|-------|------|-------------|
+| **L1** | Stateful Proxy | Persistent conversation + REST completions |
+| **L2** | Tether + Resume | Durable turn buffering + WebSocket attach/detach |
+| **L3** | Roaming | Content-addressed session bundles + import/export |
+| **L4** | Surface Negotiation | Device-aware ATTACH_SESSION handshake |
+| **L5** | MCP Bridge | Bi-directional surface-local tool invocation |
+| **L6** | Gateway Federation | Decentralised peer discovery + cross-gateway roaming |
+| **L7** | Direct Data Plane *(reserved, v0.2)* | Optional WebRTC surface↔surface streaming |
 
 ---
 
 ## L1 — Stateful Proxy
 
-**What it adds:** The `sbp` namespace on `/v1/chat/completions`.
+**The gateway maintains persistent agent sessions.**
 
-**Target effort:** An afternoon.
+### Required
 
-**Normative requirements:**
+- `POST /v1/sessions` — create a session with a `session_token`
+- `POST /v1/completions` (or equivalent) — run a turn; persist messages
+- `GET /v1/sessions/{id}` — retrieve session status and step count
+- Messages MUST be persisted across gateway restarts
+- Agent identity MUST be stable across calls
 
-- [ ] `POST /v1/chat/completions` accepts a top-level `sbp` request object.
-- [ ] When `sbp` is absent or null, the endpoint MUST behave as a standard OpenAI proxy (no session tracking).
-- [ ] When `sbp` is present, the response MUST include `sbp.session_id` (UUID).
-- [ ] The response MUST include `sbp.snapshot_id` (UUID or null) when a checkpoint was taken.
-- [ ] The `model` field MUST be passed through verbatim to the LLM router — no model restrictions.
-- [ ] HTTP 202 MUST be returned when a `suspended` session exists and `force_new_session` is false.
-- [ ] HTTP 202 response MUST include `sbp.resume_available: true` and SHOULD include `sbp.resume_prompt`.
+### Optional
+
+- Streaming completions
+- Memory (episodic, semantic, procedural)
+- Tool execution
+
+### What is NOT required
+
+- WebSocket
+- Tether buffering
+- Roaming
 
 ---
 
 ## L2 — Tether + Resume
 
-**What it adds:** Session lifecycle, durable snapshots, WebSocket attach/drain.
+**The gateway buffers agent output when the surface is offline and delivers it on reconnect.**
 
-**Target effort:** One week.
+### Required (in addition to L1)
 
-**Normative requirements (in addition to L1):**
+- `wss://<host>/v1/sbp/ws/{session_id}` — WebSocket endpoint
+- `ATTACH_SESSION` / `SESSION_ATTACHED` handshake
+- `TETHER_TURN` delivery on re-attach
+- `TURN_CHUNK` + `TURN_COMPLETE` for live streaming
+- `DETACH` and unclean-disconnect handling
+- The Tether backend MUST survive gateway process restart (durable storage — SQLite, PostgreSQL, Redis Streams, Temporal, or equivalent)
+- `tether_turns_pending` count in `SESSION_ATTACHED`
 
-- [ ] Sessions progress through the lifecycle states: `idle → running → suspended → completed | failed`.
-- [ ] Sessions MUST be persisted; a server restart MUST NOT drop a `running` or `suspended` session.
-- [ ] A `pre_action` snapshot MUST be written before any action with external side effects.
-- [ ] A `post_action` snapshot MUST be written after each action completes.
-- [ ] A `checkpoint` snapshot MUST be written every `checkpoint_every` turns.
-- [ ] The Tether queue MUST be durable and cross-replica accessible (MUST NOT be in-process memory for multi-replica deployments).
-- [ ] When a surface disconnects, the server MUST buffer subsequent output turns in the Tether queue.
-- [ ] `WS /v1/sbp/ws/{session_id}` endpoint MUST exist.
-- [ ] The first client frame MUST be `ATTACH_SESSION`; any other frame MUST cause a `PROTOCOL_ERROR` and close (code 1003).
-- [ ] On `ATTACH_SESSION`, the server MUST validate `session_token`.
-- [ ] `SESSION_ATTACHED` MUST be sent with `queued_turns` count and `sbp_version`.
-- [ ] If `queued_turns > 0`, `TETHER_TURN` frames MUST follow immediately in chronological order.
-- [ ] After drain, the Tether queue MUST be cleared.
-- [ ] `DETACH` MUST activate the Tether.
-- [ ] `PING` / `PONG` keepalive MUST be implemented.
+### Tether backend options
+
+Any of the following satisfy L2 durability:
+
+| Backend | Notes |
+|---------|-------|
+| SQLite | Zero external dependencies. File-based durability. Single-node only. |
+| PostgreSQL | Production-grade. Multi-node read replicas. |
+| Redis Streams | Multi-replica delivery, configurable AOF persistence. |
+| Temporal workflow state | Enterprise. 30-day Tether with guaranteed activity delivery. |
+| Cloudflare Durable Objects | Edge-native, globally distributed, single-Object-per-session. |
 
 ---
 
 ## L3 — Roaming
 
-**What it adds:** Export / import / handoff / fork / lineage REST API. Roaming Token (JWT). Bundle envelope.
+**Sessions are portable as content-addressed bundles that any compliant gateway can import.**
 
-**Target effort:** Two weeks.
+### Required (in addition to L2)
 
-**Normative requirements (in addition to L2):**
+- `POST /v1/sbp/sessions/{id}/export` — returns `{ roaming_token, bundle_cid, ... }`
+- `POST /v1/sbp/sessions/import` — accepts `roaming_token`, creates new session
+- Bundle MUST include: `sbp_version`, `bundle_cid`, `session`, `messages`, `memory`, `metadata`
+- `bundle_cid` MUST equal `sha256(json.dumps(bundle, sort_keys=True).encode('utf-8'))` before the field is inserted into the bundle
+- Importing gateway MUST verify `bundle_cid` on receipt
+- Default token consumption: single-use (one import per export)
+- `allow_reuse: true` MUST produce a fork (both sessions coexist independently)
 
-- [ ] `POST /v1/sbp/sessions/{id}/export` MUST return a compact HS256 JWT (`roaming_token`) with `sub`, `sid`, `iat`, `exp`.
-- [ ] `ttl_seconds` MUST be in the range [60, 604800].
-- [ ] The bundle MUST include `sbp_version`, `session`, `messages`, `memory`, `state_snapshot`, `metadata`.
-- [ ] `memory.schema_id` MUST be a URI.
-- [ ] `POST /v1/sbp/sessions/import` MUST verify the token signature and expiry.
-- [ ] Import MUST mark the token consumed (single-use by default).
-- [ ] Import with `allow_reuse: true` MUST create a Fork instead of consuming the token.
-- [ ] If `memory.schema_id` is not recognized, the import MUST succeed without memory (MUST NOT reject).
-- [ ] `GET /v1/sbp/token/{token}` MUST return metadata without consuming the token.
-- [ ] `POST /v1/sbp/sessions/{id}/handoff` MUST be atomic: export + import + bridge message injection + source session suspension.
-- [ ] `POST /v1/sbp/sessions/{id}/fork` MUST create an independent session sharing history through the fork point.
-- [ ] `GET /v1/sbp/sessions/{id}/lineage` MUST return exports, outgoing/incoming handoffs, forks, and origin.
-- [ ] Bundle hash MUST be verified on import; mismatch MUST return `SBP_TOKEN_INTEGRITY`.
+### Recommended
+
+- `POST /v1/sbp/sessions/{id}/handoff` — transfer to another agent
+- `POST /v1/sbp/sessions/{id}/fork` — branch at current checkpoint
+- `GET /v1/sbp/sessions/{id}/lineage` — full family tree (exports, handoffs, forks)
 
 ---
 
 ## L4 — Surface Negotiation
 
-**What it adds:** `SurfaceContext` in `ATTACH_SESSION`; server MAY adapt output.
+**The gateway adapts its output to the surface's device type and capabilities.**
 
-**Target effort:** Days on top of L3.
+### Required (in addition to L3)
 
-**Normative requirements (in addition to L3):**
+- `ATTACH_SESSION` MUST accept a `surface` field (SurfaceContext)
+- Gateway MUST store `SurfaceContext` for the duration of the attachment
+- Gateway MUST pass `device_type` and `max_output_tokens` to output generation
+- Gateway MUST handle `surface: null` gracefully (treat as `device_type: "unknown"`)
 
-- [ ] `ATTACH_SESSION` MUST accept a `surface_context` object (as defined in `surface-context.schema.json`).
-- [ ] Servers MUST tolerate absent, empty, or unknown `device_type` values without error.
-- [ ] Servers MUST tolerate unknown `ui_capabilities` strings without error.
-- [ ] `SESSION_ATTACHED` MUST echo the `device_type` from the surface context.
-- [ ] Servers SHOULD respect `max_output_tokens` as an output length target.
-- [ ] Servers MUST NOT fail or degrade for surfaces that send no `surface_context`.
+### SurfaceContext fields
 
----
+| Field | Type | Required |
+|-------|------|----------|
+| `device_type` | `mobile \| desktop \| iot \| browser \| voice \| unknown` | Yes |
+| `max_output_tokens` | `int \| null` | No |
+| `ui_capabilities` | `string[]` | No |
+| `locale` | `string` (BCP-47) | No |
+| `surface_id` | `string \| null` | No |
+| `mcp_tools` | `string[]` | No |
 
-## L5 — Surface MCP Bridge
+### Recommended
 
-**What it adds:** `TOOL_CALL` / `TOOL_RESULT` frames; bidirectional MCP over WebSocket.
-
-**Target effort:** One week on top of L4.
-
-**Normative requirements (in addition to L4):**
-
-- [ ] When `surface_context.mcp_tools` is non-empty, the gateway MUST accept and register those tool names.
-- [ ] `SESSION_ATTACHED` MUST include `mcp_tools_registered` listing the accepted tools.
-- [ ] The gateway MUST NOT route `TOOL_CALL` for a tool not declared in `mcp_tools`.
-- [ ] `TOOL_CALL` frames MUST include a unique `call_id` UUID.
-- [ ] Multiple `TOOL_CALL` frames MAY be in-flight simultaneously (multiplexed by `call_id`).
-- [ ] The gateway MUST apply a default 30-second timeout per tool call.
-- [ ] On surface disconnect, all in-flight tool calls MUST be cancelled (treated as failed).
-- [ ] `TOOL_RESULT` MUST be matched to the pending `TOOL_CALL` by `call_id`.
-- [ ] On successful `TOOL_RESULT`, the result MUST be delivered to the LLM.
+- Contextual Translation Pipeline (CTP): second LLM pass to reformat output for mobile/IoT
+- Streaming CTP output as `TURN_CHUNK` frames (not blocking until full)
 
 ---
 
-## Running the conformance suite
+## L5 — MCP Bridge
 
-```bash
-# Clone the spec repo
-git clone https://github.com/statebridge-protocol/sbp.git
-cd sbp
+**Agents can invoke tools that run locally on the surface.**
 
-# Run against your server
-python conformance/runner.py \
-  --target http://your-sbp-server:8080 \
-  --level L5 \
-  --api-key "your-key"
+### Required (in addition to L4)
 
-# Run only a specific level
-python conformance/runner.py --target http://localhost:8080 --level L1
+- Gateway MUST register surface-declared `mcp_tools` as callable tools in the agent's tool schema
+- Gateway MUST emit `TOOL_CALL` frames and await `TOOL_RESULT` responses
+- `call_id` MUST be unique per invocation (UUID)
+- Timeout MUST be enforced (RECOMMENDED: 30 seconds)
+- On timeout or disconnection, gateway MUST return an error tool result to the agent (not deadlock)
+- Surface MUST respond with `TOOL_RESULT` matching the `call_id`
+
+### Multi-replica deployments
+
+- In single-replica: in-process Future rendezvous is acceptable
+- In multi-replica: cross-process pub/sub (Redis pub/sub, Temporal signal, etc.) MUST be used to route TOOL_RESULT to the correct pod
+
+---
+
+## L6 — Gateway Federation (Optional)
+
+**Independent gateways discover each other and exchange bundles by CID.**
+
+### Two roles
+
+An L6 node operates in one of two roles (or both):
+
+- **Gateway**: hosts live sessions, serves bundles by CID. The default.
+- **Tracker**: indexes which Gateway holds which `bundle_cid`. Optional, no session content.
+
+A deployment MAY combine both roles in a single process. Public SBP infrastructure
+SHOULD separate them so Trackers can be operated cheaply at scale without privileged
+access to session content.
+
+### Required (in addition to L5)
+
+- `GET /.well-known/sbp` — discovery endpoint including a `role` field
+- `GET /v1/sbp/bundles/{bundle_cid}` — bundle resolution by CID (Gateways only)
+- Bundle resolution MUST verify `bundle_cid` before returning
+- Federation token (signed JWT or mutual TLS) MUST be required for bundle resolution
+- Trackers MUST NOT proxy bundle content; they return only references
+- Trackers MUST sign their registry responses with the same key advertised in `/.well-known/sbp`
+
+### Discovery endpoint response
+
+```json
+{
+  "sbp_version": "1.2",
+  "gateway_id": "<string>",
+  "federation": true,
+  "public_key": "<base64-DER>",
+  "endpoints": {
+    "ws": "wss://<host>/v1/sbp/ws/{session_id}",
+    "bundle": "https://<host>/v1/sbp/bundles/{bundle_cid}",
+    "import": "https://<host>/v1/sbp/sessions/import"
+  }
+}
 ```
 
-The runner exits `0` on pass, `1` on failure. CI-friendly.
+### Recommended
+
+- Static peer list in gateway config
+- DNS SRV peer discovery (`_sbp._tcp.<domain>`)
+- Automatic session migration: surface connects to nearest L6 gateway; gateway fetches bundle from origin peer transparently
+
+---
+
+## L7 — Direct Data Plane (Reserved, v0.2)
+
+**Optional WebRTC surface↔surface streaming with Gateway-mediated signalling.**
+
+L7 is **reserved** in SBP v1.2 and not normative. It will be specified separately
+once a reference implementation demonstrates its operational tradeoffs.
+
+### Motivating use case
+
+Two surfaces on the same local network (a phone and a watch, a desktop and a tablet)
+exchanging live agent output without round-tripping through the cloud Gateway. The
+Gateway remains the source of truth for the session bundle and Tether, but acts only
+as a signalling server during the WebRTC handshake.
+
+### Why it's reserved
+
+- WebRTC requires STUN/TURN infrastructure that inflates minimum viable implementations
+- NAT traversal failure modes are subtle and add a long error surface
+- The use case is real but narrow — most deployments do not need it
+
+Implementations that ship a WebRTC data plane MAY self-describe as "L7-experimental"
+but MUST NOT claim L7 conformance until the specification is finalised.
+
+---
+
+## Self-certification
+
+To claim a conformance level, run the SBP conformance test suite against your server URL:
+
+```bash
+npx sbp-conformance --url https://your-gateway.example.com --level L5
+```
+
+The test suite is available at: `statebridge-protocol/sbp-conformance`
+
+---
+
+## Reference Implementations
+
+| Implementation | Level | Backend | Notes |
+|---------------|-------|---------|-------|
+| `sbp-server` (Python, SQLite) | L5 | SQLite | Default. Zero external dependencies. |
+| `sbp-server` (Python, PostgreSQL) | L5 | PostgreSQL + Redis | Production OSS. |
+| SilkBridge Cloud | L6 | Temporal + PostgreSQL | Enterprise SaaS. |
+
+---
+
+*SBP Conformance Levels — v1.2 — © 2026 Silkbridge, Inc. — Apache-2.0*

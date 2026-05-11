@@ -245,7 +245,7 @@ indicate breaking changes.
 
 ## 5. Conformance Levels
 
-SBP defines five conformance levels. An implementation declares its level;
+SBP defines six conformance levels (plus one reserved). An implementation declares its level;
 it MUST satisfy all normative requirements for that level and all levels
 below it.
 
@@ -256,12 +256,14 @@ below it.
 | **L3** | Roaming | Export/import/handoff/fork/lineage REST API; Roaming Token (JWT); bundle envelope |
 | **L4** | Surface Negotiation | `SurfaceContext` in `ATTACH_SESSION`; server MAY adapt output based on surface capabilities |
 | **L5** | Surface MCP Bridge | `TOOL_CALL` / `TOOL_RESULT` frames; bidirectional MCP over WebSocket |
+| **L6** | Gateway Federation | `/.well-known/sbp` discovery; cross-gateway bundle resolution by CID |
+| **L7** *(reserved, v0.2)* | Direct Data Plane | Optional WebRTC surface↔surface streaming |
 
 Implementations MAY implement levels out of order, but MUST satisfy all
 requirements of every level up to and including the claimed level. An
 implementation that claims L3 but does not implement L2 is non-conformant.
 
-The MARGNE-AI reference implementation (SilkBridge) is L5-conformant.
+The MARGNE-AI reference implementation (SilkBridge) is L5-conformant. SilkBridge Cloud targets L6.
 
 ### 5.1 Advertising conformance
 
@@ -549,7 +551,7 @@ A conformant bundle MUST have the following top-level structure:
     }
   ],
   "memory": {
-    "schema_id": "uri",    // URI identifying the memory schema — see §15.2
+    "schema_id": "uri",    // URI identifying the memory schema — see §16.2
     "payload":   {}        // opaque object; structure defined by schema_id
   },
   "state_snapshot": {} ,  // OPTIONAL — latest agent state snapshot (may be null)
@@ -968,9 +970,118 @@ Reserved SBP error code range: `SBP_` prefix.
 
 ---
 
-## 13. Security Considerations
+## 13. Gateway Federation (L6, optional)
 
-### 13.1 Roaming Token storage
+Gateway Federation allows independent SBP gateways to discover each other and exchange bundles without a central registry. This is the "caravanserai network" model: independent cities that know of each other.
+
+### 13.0 Two Roles: Tracker vs. Gateway
+
+In a federated deployment, an SBP node MAY operate in one of two distinct roles. A single deployment MAY combine both.
+
+**Gateway** — A node that hosts live sessions. It runs the agent lifecycle, terminates surface WebSockets, persists state, and operates the Tether. A Gateway holds the canonical session and serves bundles on request.
+
+**Tracker** — A node that does NOT host sessions. It indexes known Gateways by `gateway_id` and `bundle_cid`, answering "who has this bundle?" queries. A Tracker is a lightweight directory; it never sees session content, only references. Trackers are OPTIONAL — gateways can federate peer-to-peer via static peer lists without any Tracker. Trackers exist for scale: discovery in networks with hundreds of independent gateways.
+
+```
+┌────────────┐   "who has bundle abc123?"   ┌──────────────┐
+│  Tracker   │ ◄────────────────────────── │  Gateway A   │
+│ (directory)│                             │ (no bundle)  │
+│            │ ──────► "gateway B has it"  │              │
+└────────────┘                             └──────┬───────┘
+                                                  │
+                                  GET /v1/sbp/bundles/abc123
+                                                  │
+                                           ┌──────▼───────┐
+                                           │  Gateway B   │
+                                           │ (has bundle) │
+                                           └──────────────┘
+```
+
+A Tracker exposes:
+- `GET /.well-known/sbp` — its own discovery manifest, with `role: "tracker"`
+- `GET /v1/sbp/registry/{bundle_cid}` — returns a list of gateway URLs that have advertised this CID
+- `POST /v1/sbp/registry` — Gateways announce themselves: `{ gateway_id, bundle_cid, signed_manifest }`
+
+A Tracker MUST NOT proxy bundle content. It only stores `{ bundle_cid, gateway_url, expires_at, signature }` records. The bundle itself is always fetched directly from a Gateway. This keeps Trackers cheap to run and avoids privileged knowledge of session content.
+
+### 13.1 Well-known Discovery
+
+Any SBP gateway MAY advertise federation capability by exposing:
+
+```
+GET /.well-known/sbp
+```
+
+**Response:**
+
+```json
+{
+  "sbp_version": "1.2",
+  "gateway_id": "<string>",
+  "gateway_name": "<string>",
+  "role": "gateway | tracker | both",
+  "federation": true,
+  "public_key": "<base64-encoded DER>",
+  "endpoints": {
+    "ws": "wss://<host>/v1/sbp/ws/{session_id}",
+    "export": "https://<host>/v1/sbp/sessions/{session_id}/export",
+    "import": "https://<host>/v1/sbp/sessions/import",
+    "bundle": "https://<host>/v1/sbp/bundles/{bundle_cid}",
+    "registry": "https://<host>/v1/sbp/registry"
+  }
+}
+```
+
+The `registry` endpoint is present only on nodes with `role` of `"tracker"` or `"both"`. The manifest itself is a static, signed document — clients SHOULD verify the signature against a known `public_key`. SBP deliberately uses signed manifests at a well-known HTTP endpoint rather than a DHT for discovery: this matches the operational model developers already trust (DNS, well-known URLs, signed JWTs) and avoids the long failure tail of DHT bootstrap and NAT traversal.
+
+### 13.2 Bundle Resolution
+
+A federated gateway SHOULD support resolution of bundles by CID:
+
+```
+GET /v1/sbp/bundles/{bundle_cid}
+Authorization: Bearer <federation_token>
+```
+
+**Response:** The raw bundle JSON.
+
+This endpoint allows gateways to fetch a bundle from a peer gateway by its content address, without requiring a roaming token. The receiving gateway MUST verify `bundle_cid` before importing (same verification as §8 — bundle import).
+
+### 13.3 Cross-gateway Session Migration
+
+A federated migration flow:
+
+```
+1. Surface connects to Gateway A (nearest)
+2. Gateway A has no session for session_id
+3. Gateway A queries known peers: GET /v1/sbp/bundles/{bundle_cid}
+4. Gateway B (origin) returns the bundle
+5. Gateway A verifies bundle_cid, imports the session
+6. Gateway A sends SESSION_ATTACHED to surface
+7. Surface continues the session on Gateway A — seamlessly
+```
+
+### 13.4 Peer Discovery
+
+Gateways MAY discover peers via, in order of preference:
+
+1. **Static peer list** (config file) — the simplest and most operationally predictable option. RECOMMENDED for private networks and enterprise.
+2. **Tracker query** — submit `bundle_cid` to one or more known Trackers; receive a list of Gateway URLs that have advertised the CID.
+3. **DNS SRV records** (`_sbp._tcp.<domain>`) — standard DNS infrastructure, suitable for organisations with existing DNS operations.
+
+DHT-based discovery is intentionally **out of scope** for SBP v1.2. DHTs introduce bootstrap, NAT-traversal, and eclipse-attack concerns that are inappropriate for the protocol's L6 conformance level. Implementations MAY layer a DHT on top of `/.well-known/sbp` discovery as an extension, but doing so is not part of normative SBP.
+
+### 13.5 Optional L7 — Direct surface↔surface data plane (reserved, v0.2)
+
+A future, OPTIONAL conformance level (L7) may define a WebRTC data-channel mode in which surface-to-surface streaming bypasses the Gateway for low-latency interactions (e.g., live device handoff between a phone and a watch on the same network). In this mode, the Gateway remains the source of truth for session state but acts only as a signalling server during the WebRTC handshake.
+
+L7 is intentionally **not normative** in SBP v1.2. WebRTC introduces non-trivial NAT-traversal and TURN-server dependencies that would inflate the minimum viable implementation. L7 will be specified separately once a reference implementation demonstrates its operational tradeoffs.
+
+---
+
+## 14. Security Considerations
+
+### 14.1 Roaming Token storage
 
 Roaming Tokens are compact JWTs signed with HMAC-SHA256. The signing secret
 (`jwt_secret`) MUST be:
@@ -981,27 +1092,27 @@ Roaming Tokens are compact JWTs signed with HMAC-SHA256. The signing secret
 The default token TTL is 24 hours; the maximum is 7 days. Tokens MUST be
 transmitted only over TLS.
 
-### 13.2 Bundle integrity
+### 14.2 Bundle integrity
 
 Each bundle is hashed with SHA-256 at export time. The gateway MUST verify the
 hash on import. If the hash does not match the bundle, the import MUST be
 rejected with `SBP_TOKEN_INTEGRITY`.
 
-### 13.3 Snapshot encryption at rest
+### 14.3 Snapshot encryption at rest
 
 This spec does not mandate encryption of snapshots or bundles at rest.
 Implementations that store personal data in snapshots SHOULD apply encryption
 at rest and SHOULD consider column-level encryption for message content that
 may contain PII.
 
-### 13.4 Replay attacks
+### 14.4 Replay attacks
 
 Roaming Tokens are single-use by default. Implementations MUST track consumed
 token IDs and reject re-use (returning `SBP_TOKEN_CONSUMED`) unless the
 caller explicitly passes `allow_reuse: true`, which creates a Fork rather than
 a standard import.
 
-### 13.5 Surface impersonation
+### 14.5 Surface impersonation
 
 The `session_token` in `ATTACH_SESSION` is the sole authentication mechanism
 for surfaces in v1.2. Implementations in high-security environments SHOULD add
@@ -1009,7 +1120,7 @@ additional binding such as:
 - TLS client certificates (mTLS) between the surface and the gateway.
 - Short-lived surface tokens bound to a device fingerprint (`surface_id`).
 
-### 13.6 Surface-tool authorization
+### 14.6 Surface-tool authorization
 
 The gateway SHOULD only invoke tools that the surface declared in `mcp_tools`
 at attach time. Implementations SHOULD validate the declared tool list against
@@ -1018,18 +1129,18 @@ contacts, GPS) and MUST be treated with the same caution as any privileged API.
 
 ---
 
-## 14. MCP Interoperability
+## 15. MCP Interoperability
 
 SBP and MCP compose at two levels:
 
-### 14.1 Southbound MCP (server-side tools)
+### 15.1 Southbound MCP (server-side tools)
 
 The agent gateway acts as an MCP client: it calls server-side MCP tools
 (databases, APIs, file systems) via MCP's standard `tools/call` protocol. This
 is unaffected by SBP. SBP carries the agent's state context; MCP carries the
 tool calls. Both run in parallel.
 
-### 14.2 Northbound MCP (surface-side tools via SBP Bridge)
+### 15.2 Northbound MCP (surface-side tools via SBP Bridge)
 
 When a surface declares `mcp_tools` in its `SurfaceContext`:
 1. The surface becomes an MCP server, reachable through the SBP WebSocket.
@@ -1045,9 +1156,9 @@ When a surface declares `mcp_tools` in its `SurfaceContext`:
 The surface need not implement the full MCP protocol — the gateway handles the
 MCP layer. The surface only needs to handle `TOOL_CALL` and send `TOOL_RESULT`.
 
-### 14.3 Model-agnostic tool integration
+### 15.3 Model-agnostic tool integration
 
-Because SBP is model-agnostic, the tool injection in §14.2 MUST be compatible
+Because SBP is model-agnostic, the tool injection in §15.2 MUST be compatible
 with any LLM that the gateway routes to. Implementations that support Northbound
 MCP MUST format tool schemas in a way that is compatible with their LLM router's
 tool-calling conventions. The protocol does not specify which LLM is used; the
@@ -1055,15 +1166,15 @@ tool call semantics are an implementation concern.
 
 ---
 
-## 15. IANA and Registry Considerations
+## 16. IANA and Registry Considerations
 
-### 15.1 The `sbp` namespace
+### 16.1 The `sbp` namespace
 
 The `sbp` top-level key in OpenAI-compatible request and response bodies is
 reserved for the State Bridge Protocol. Implementations SHOULD NOT use this key
 for non-SBP purposes.
 
-### 15.2 Memory schema URI registry
+### 16.2 Memory schema URI registry
 
 The `memory.schema_id` field accepts a URI. Known schema URIs are listed below.
 Anyone may register a URI by opening a PR to add a row to this table.
@@ -1075,25 +1186,26 @@ Anyone may register a URI by opening a PR to add a row to this table.
 Implementations that encounter an unrecognized `schema_id` MUST import the
 session without the memory payload.
 
-### 15.3 Well-known surface device types
+### 16.3 Well-known surface device types
 
 Additions to the `device_type` registry require a PR to this spec. The current
 registered values are: `mobile`, `desktop`, `iot`, `browser`, `voice`, `unknown`.
 
-### 15.4 Well-known UI capabilities
+### 16.4 Well-known UI capabilities
 
 Additions to the `ui_capabilities` registry require a PR to this spec.
 Current registered values: `markdown`, `tables`, `images`, `audio`, `streaming`.
 
 ---
 
-## 16. References
+## 17. References
 
 - **[RFC 2119]** Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", March 1997. https://www.rfc-editor.org/rfc/rfc2119
 - **[RFC 7519]** Jones, M., et al., "JSON Web Token (JWT)", May 2015. https://www.rfc-editor.org/rfc/rfc7519
 - **[RFC 8259]** Bray, T., "The JavaScript Object Notation (JSON) Data Interchange Format", December 2017. https://www.rfc-editor.org/rfc/rfc8259
 - **[MCP]** Anthropic, "Model Context Protocol Specification". https://spec.modelcontextprotocol.io/
 - **[OpenAI Chat Completions API]** https://platform.openai.com/docs/api-reference/chat
+- **[SHA-256]** NIST, "Secure Hash Standard (SHS)", FIPS PUB 180-4, August 2015. https://doi.org/10.6028/NIST.FIPS.180-4
 
 ---
 
