@@ -1,8 +1,8 @@
 title: State Bridge Protocol (SBP)
 description: "The Northbound protocol for AI agents — durable state across disconnects, devices, and time. Model-agnostic. Server-agnostic."
-url: "https://statebridge-protocol.github.io"
-baseurl: "/sbp"
-repository: "statebridge-protocol/sbp"
+url: "https://franconico.github.io"
+baseurl: "/statebridge-protocol-SBP"
+repository: "Franconico/statebridge-protocol-SBP"
 
 theme: minima
 
