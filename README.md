@@ -18,30 +18,30 @@ home, switching to their watch, or handing the task to a colleague.
 
 **SBP fixes this.** It's the open standard for the state layer between an agent
 and the human it serves: durable sessions, device handoff, surface adaptation,
-and a bidirectional MCP bridge.
+a bidirectional MCP bridge — and now **federated gateways** so no single server
+is a single point of failure.
 
 ## Northbound vs Southbound — SBP and MCP are complementary
 
 ```
-                   ┌───────────────────────┐
-                   │  Apple Watch / Phone  │
-                   │  Browser / Voice / …  │
-                   └──────────┬────────────┘
-                              │
-                       ⇅  SBP (Northbound)
-                              │
-                   ┌──────────┴────────────┐
-                   │   Agent Gateway       │
-                   │   (Tether · Roaming · │
-                   │    Surfaces · MCP-Br) │
-                   └──────────┬────────────┘
-                              │
-                       ⇅  MCP (Southbound)
-                              │
-                   ┌──────────┴────────────┐
-                   │  Databases · APIs     │
-                   │  Files · Tools · Web  │
-                   └───────────────────────┘
+         ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+         │ Gateway NYC  │   │ Gateway FRA  │   │ Gateway SIN  │
+         └──────┬───────┘   └──────┬───────┘   └──────┬───────┘
+                │                  │   ⇄ L6 Federation  │
+                └──────────────────┴───────────────────┘
+                                   │
+                            ⇅  SBP (Northbound)
+                                   │
+         ┌─────────────────────────┴────────────────────────┐
+         │  Apple Watch · Phone · Browser · Voice · IoT …  │
+         └──────────────────────────────────────────────────┘
+
+                                   │
+                            ⇅  MCP (Southbound)
+                                   │
+         ┌─────────────────────────┴────────────────────────┐
+         │        Databases · APIs · Files · Tools          │
+         └──────────────────────────────────────────────────┘
 ```
 
 |                   | **MCP** (Southbound)                | **SBP** (Northbound)                       |
@@ -50,7 +50,6 @@ and a bidirectional MCP bridge.
 | Stateful?         | No (per-call)                       | **Yes** (sessions survive disconnects)     |
 | Scope             | "Give the agent hands"              | "Give the agent a soul that persists"      |
 | Typical transport | stdio, HTTP+SSE                     | HTTP + WebSocket                           |
-| Transport runtime | Lightweight, ~50 LoC                | Stateful, durable backend required         |
 | LLM-agnostic?     | Yes                                 | **Yes** — any OpenAI-compatible model      |
 | Server-agnostic?  | Yes (stdio, HTTP)                   | **Yes** — swap backend implementations freely |
 | Created by        | Anthropic                           | The State Bridge community (open standard) |
@@ -60,7 +59,7 @@ its own MCP tools (camera, GPS, contacts) at attach-time, and the agent can
 invoke them through SBP's bidirectional bridge. *MCP gives the agent hands;
 SBP gives the agent a soul that survives the drive home.*
 
-## Model-agnostic. Server-agnostic. Your stack, your model.
+## Model-agnostic. Server-agnostic. Federation-ready.
 
 SBP places **no requirements** on which LLM or which server infrastructure you
 use. Every institution keeps the freedom to select and change both independently:
@@ -75,34 +74,26 @@ use. Every institution keeps the freedom to select and change both independently
   └────────────────────────────────────────────────────────────────┘
 
   ┌────────────────────────────────────────────────────────────────┐
-  │                    SBP Server Backend                          │
-  │  TetherQueue: in-memory     ← default (single-process dev)    │
-  │  TetherQueue: Redis         ← multi-replica deployment        │
-  │  TetherQueue: Temporal      ← enterprise durable execution     │
-  │  TetherQueue: your-own      ← implement the 3-method protocol │
+  │                    SBP Tether Backend                          │
+  │  SQLite (default)   ← zero deps, single-node, file-based      │
+  │  PostgreSQL + Redis ← multi-replica, production OSS           │
+  │  Temporal           ← enterprise durable execution            │
+  │  Cloudflare DO      ← edge-native, globally distributed       │
+  │  your-own           ← implement the 4-method interface        │
   └────────────────────────────────────────────────────────────────┘
 ```
 
 **Why this matters:**
 - A hospital can run SBP with a local Llama model on-premises — no cloud calls,
   no data leaving the building.
-- A startup can switch from GPT-4o to Claude Sonnet mid-session by changing one
-  field in the request — sessions survive the model swap.
-- An enterprise can replace their queue backend from Redis to Temporal (or
-  vice-versa) without changing a line of their application code.
+- A startup can switch from GPT-4o to Claude mid-session by changing one field —
+  sessions survive the model swap.
+- An enterprise can move from SQLite to PostgreSQL to Temporal without changing
+  application code or surface clients.
 - No vendor can "own" SBP by locking in an LLM or an infra tier. The protocol
   is defined by the wire format, not the model or the backend.
 
-SBP is intentionally structured so that:
-- **LLM selection** lives entirely in the `model` field of the request — any
-  OpenAI-compatible model string is valid.
-- **Backend selection** is encapsulated behind four small interfaces
-  (`SessionStore`, `TetherQueue`, `SnapshotStore`, `RoamingTokenStore`). Swap
-  them without changing your application or your surfaces.
-- The spec defines **contracts** (what MUST happen), never **implementations**
-  (how to build it).
-
-## The five capabilities
+## The six capabilities
 
 | # | Capability        | What it does                                                        |
 |---|-------------------|---------------------------------------------------------------------|
@@ -111,29 +102,30 @@ SBP is intentionally structured so that:
 | 3 | **Roaming**       | Export full session state → portable signed token → import anywhere |
 | 4 | **Surface**       | Surfaces declare device type, screen size, capabilities at attach   |
 | 5 | **MCP Bridge**    | Surfaces expose local MCP tools the agent can call over WebSocket   |
+| 6 | **Federation**    | Independent gateways discover each other and exchange bundles by CID |
 
 ## Conformance levels
 
-Pick how deep you implement. The reference server implements all five.
+Pick how deep you implement. Levels are cumulative.
 
-| Level | Adds                        | Effort           |
-|-------|-----------------------------|------------------|
-| **L1** | Stateful Proxy (`sbp` namespace on OpenAI completions) | An afternoon     |
-| **L2** | + Tether + Resume           | A week           |
-| **L3** | + Roaming (export/import/handoff/fork/lineage) | Two weeks        |
-| **L4** | + Surface negotiation       | Days on top of L3 |
-| **L5** | + MCP Bridge (full Northbound MCP) | A week on top of L4 |
+| Level | Name | Adds | Effort |
+|-------|------|------|--------|
+| **L1** | Stateful Proxy | `sbp` namespace on OpenAI-compatible completions | An afternoon |
+| **L2** | Tether + Resume | Durable turn queue; WebSocket attach/drain | A week |
+| **L3** | Roaming | Export/import/handoff/fork/lineage; content-addressed bundles | Two weeks |
+| **L4** | Surface Negotiation | `SurfaceContext` at attach; device-aware output | Days on top of L3 |
+| **L5** | MCP Bridge | Bidirectional `TOOL_CALL`/`TOOL_RESULT` over WebSocket | A week on top of L4 |
+| **L6** | Gateway Federation | `/.well-known/sbp` discovery; cross-gateway bundle resolution by SHA-256 CID | A week on top of L5 |
+| **L7** *(reserved)* | Direct Data Plane | WebRTC surface↔surface streaming (v0.2, not normative) | TBD |
 
 See [`docs/reference/conformance-levels.md`](docs/reference/conformance-levels.md)
-for the full normative checklists.
+for the full normative checklists and [`docs/concepts/federation.md`](docs/concepts/federation.md)
+for the Silk Road federation model.
 
 ## Quickstart
 
-Install the reference server, start it, and resume a session through a killed
-WebSocket — all in five minutes.
-
 ```bash
-# 1. Install + start the L5-conformant reference server (in-memory backend)
+# 1. Install + start the L5-conformant reference server (SQLite backend, zero deps)
 pip install sbp-server-reference          # (will be on PyPI for v0.1 launch)
 sbp-server start --port 8080
 
@@ -153,6 +145,10 @@ wscat -c ws://localhost:8080/v1/sbp/ws/<session_id> \
        "surface_context":{"device_type":"mobile","ui_capabilities":["markdown"],
                           "mcp_tools":["camera"]}}'
 # → SESSION_ATTACHED, then any buffered Tether turns drain through the live socket
+
+# 4. L6 — federation: see who's running SBP
+curl https://your-gateway.example.com/.well-known/sbp
+# → { "sbp_version": "1.2", "gateway_id": "...", "federation": true, ... }
 ```
 
 Full walkthrough: [`docs/getting-started.md`](docs/getting-started.md).
@@ -173,7 +169,8 @@ Run SBP yourself with the Apache-2.0 reference server, or skip the ops:
 | Layer | OSS reference (free, Apache-2.0) | SilkBridge Enterprise / Cloud |
 |---|---|---|
 | Protocol spec | Full SBP v1.2 | Same — it's the open standard |
-| Reference server | L5, in-memory backend (single-process; restart loses state) | L5, **Temporal backend** — durable Tether across pod restarts, scaling events, 30-day disconnects with guaranteed delivery |
+| Reference server | **L5**, SQLite (zero deps, single-node) or PostgreSQL+Redis (multi-replica) | **L6**, **Temporal backend** — durable Tether across pod restarts, scaling events, 30-day disconnects with guaranteed delivery |
+| Gateway federation | Spec-compliant `/.well-known/sbp` + bundle resolution; static peer list | Managed gateway mesh — automatic cross-region session migration, SLA-backed availability |
 | Surface translation | Frame protocol only (`TURN_CHUNK` descriptor) | **Contextual Translation Pipeline** — Gemini-Flash streaming adaptation (4k-token report → 2-sentence watch glance) |
 | Surface MCP bridge | Wire protocol (`TOOL_CALL`/`TOOL_RESULT` frames, Future rendezvous) | **LLM-side connector** — dynamic injection of surface-declared tools into the LLM's `tool_calls`; per-tool authz |
 | Memory | Bundle envelope + `schema_id` URI registry | `silkbridge.memory.v1` — episodic / semantic / procedural consolidation |
@@ -183,28 +180,52 @@ Run SBP yourself with the Apache-2.0 reference server, or skip the ops:
 | Operations | You run it | **SilkBridge Cloud** *(coming soon)* — managed, SLA-backed |
 
 The protocol is free; the operational trust is what SilkBridge sells. Any
-implementer can build an L5 server from this spec — but you'd be building
+implementer can build an L6 server from this spec — but you'd be building
 Twilio's stack from scratch.
 
 ## Repository map
 
 ```
 statebridge-protocol/sbp/
-├── spec/             ← the normative protocol (SPEC.md + JSON Schemas + examples)
-├── docs/             ← GitHub Pages site (dev-friendly companion guide)
+├── spec/
+│   ├── SPEC.md                   ← normative protocol (RFC-style, §1–17)
+│   ├── schemas/                  ← JSON Schema for every wire structure
+│   └── examples/                 ← L1–L5 wire-level examples
+├── docs/
+│   ├── why-sbp.md                ← Northbound vs Southbound essay
+│   ├── getting-started.md        ← 5-minute quickstart
+│   ├── concepts/
+│   │   ├── tether.md
+│   │   ├── resume.md
+│   │   ├── roaming.md
+│   │   ├── surfaces.md
+│   │   ├── mcp-bridge.md
+│   │   ├── lineage.md
+│   │   └── federation.md         ← Silk Road / Independent Cities model (new)
+│   └── reference/
+│       ├── http-api.md
+│       ├── websocket-frames.md
+│       ├── error-codes.md
+│       └── conformance-levels.md ← L1–L7 normative checklists (updated)
 ├── reference/
-│   ├── server-python/    ← Apache-2.0 L5-conformant FastAPI server
-│   └── client-typescript/← Apache-2.0 browser/Node client
-├── conformance/      ← Language-agnostic test fixtures organized by L1–L5
-└── .github/          ← CI: schema validation, conformance self-test, Pages deploy
+│   ├── server-python/
+│   │   └── sbp_server/
+│   │       └── backends/
+│   │           ├── base.py       ← TetherBackend protocol (4 methods)
+│   │           ├── memory.py     ← in-process default (dev/test)
+│   │           ├── sqlite.py     ← SQLite + WAL mode (zero deps, new)
+│   │           └── postgres.py   ← PostgreSQL + Redis pub/sub (new)
+│   └── client-typescript/        ← SBPClient browser/Node library
+├── conformance/                  ← language-agnostic test fixtures L1–L5
+└── .github/                      ← CI: schema validation, conformance, Pages
 ```
 
 ## Documentation
 
-- **Spec** — [`spec/SPEC.md`](spec/SPEC.md) (normative, RFC-style)
+- **Spec** — [`spec/SPEC.md`](spec/SPEC.md) (normative, RFC-style, §1–17)
 - **Why SBP?** — [`docs/why-sbp.md`](docs/why-sbp.md) (the Northbound essay)
 - **Getting started** — [`docs/getting-started.md`](docs/getting-started.md)
-- **Concepts** — [Tether](docs/concepts/tether.md) · [Resume](docs/concepts/resume.md) · [Roaming](docs/concepts/roaming.md) · [Surfaces](docs/concepts/surfaces.md) · [MCP Bridge](docs/concepts/mcp-bridge.md) · [Lineage](docs/concepts/lineage.md)
+- **Concepts** — [Tether](docs/concepts/tether.md) · [Resume](docs/concepts/resume.md) · [Roaming](docs/concepts/roaming.md) · [Surfaces](docs/concepts/surfaces.md) · [MCP Bridge](docs/concepts/mcp-bridge.md) · [Lineage](docs/concepts/lineage.md) · [**Federation**](docs/concepts/federation.md)
 - **Reference** — [HTTP API](docs/reference/http-api.md) · [WebSocket Frames](docs/reference/websocket-frames.md) · [Error Codes](docs/reference/error-codes.md) · [Conformance Levels](docs/reference/conformance-levels.md)
 - **Implementations** — [`docs/implementations.md`](docs/implementations.md)
 
