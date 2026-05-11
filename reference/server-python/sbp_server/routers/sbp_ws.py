@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from sbp_server.ws_connection_manager import manager
 
@@ -43,12 +43,13 @@ router = APIRouter()
 
 
 @router.websocket("/ws/{session_id}")
-async def sbp_websocket(session_id: str, ws: WebSocket, request: Request) -> None:
+async def sbp_websocket(session_id: str, ws: WebSocket) -> None:
     """SBP live surface attachment endpoint (L4/L5)."""
     await ws.accept()
 
-    session_store = request.app.state.session_store
-    tether_queue = request.app.state.tether_queue
+    # WebSocket inherits from HTTPConnection; app state is accessible via ws.app.state
+    session_store = ws.app.state.session_store
+    tether_queue = ws.app.state.tether_queue
 
     # ── Receive and validate ATTACH_SESSION ───────────────────────────────────
     try:

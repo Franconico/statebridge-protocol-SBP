@@ -31,16 +31,37 @@ from sbp_server.models.completions import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_LLM_BASE_URL = os.environ.get("SBP_LLM_BASE_URL", "").rstrip("/")
-_LLM_API_KEY = os.environ.get("SBP_LLM_API_KEY", "")
-_DEFAULT_MODEL = os.environ.get("SBP_DEFAULT_MODEL", "gpt-4o")
+
+def _llm_base_url() -> str:
+    return os.environ.get("SBP_LLM_BASE_URL", "").rstrip("/")
 
 
 def _llm_headers() -> dict[str, str]:
+    key = os.environ.get("SBP_LLM_API_KEY", "")
     h = {"Content-Type": "application/json"}
-    if _LLM_API_KEY:
-        h["Authorization"] = f"Bearer {_LLM_API_KEY}"
+    if key:
+        h["Authorization"] = f"Bearer {key}"
     return h
+
+
+def _default_model() -> str:
+    return os.environ.get("SBP_DEFAULT_MODEL", "gpt-4o")
+
+
+async def _call_llm(url: str, request_dict: dict) -> httpx.Response:
+    """
+    Make a single non-streaming POST to the configured LLM endpoint.
+    Extracted for testability — tests monkeypatch this function directly.
+    Raises HTTP 503 on connection failure.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            return await client.post(url, json=request_dict, headers=_llm_headers())
+    except httpx.ConnectError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Cannot reach LLM endpoint ({url}): {exc}",
+        )
 
 
 async def _proxy_streaming(
@@ -49,8 +70,8 @@ async def _proxy_streaming(
     session_id: str,
     session_token: str,
 ) -> Any:
-    """Yield SSE chunks from the upstream LLM, prepending the session header."""
-    url = f"{_LLM_BASE_URL}/chat/completions"
+    """Yield SSE chunks from the upstream LLM."""
+    url = f"{_llm_base_url()}/chat/completions"
     async with httpx.AsyncClient(timeout=120.0) as client:
         async with client.stream("POST", url, json=request_dict, headers=_llm_headers()) as resp:
             async for chunk in resp.aiter_bytes():
@@ -119,9 +140,10 @@ async def chat_completions(
     # ── Build upstream request — strip 'sbp' namespace ───────────────────────
     request_dict = body.model_dump(exclude={"sbp"}, exclude_none=True)
     if not request_dict.get("model"):
-        request_dict["model"] = _DEFAULT_MODEL
+        request_dict["model"] = _default_model()
 
-    if not _LLM_BASE_URL:
+    base_url = _llm_base_url()
+    if not base_url:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="SBP_LLM_BASE_URL is not configured",
@@ -140,11 +162,9 @@ async def chat_completions(
         )
 
     # ── Non-streaming path ────────────────────────────────────────────────────
-    url = f"{_LLM_BASE_URL}/chat/completions"
+    url = f"{base_url}/chat/completions"
     t0 = time.monotonic()
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(url, json=request_dict, headers=_llm_headers())
-
+    resp = await _call_llm(url, request_dict)
     latency_ms = int((time.monotonic() - t0) * 1000)
 
     if resp.status_code >= 400:

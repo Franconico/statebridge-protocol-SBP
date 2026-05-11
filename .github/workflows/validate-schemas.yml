@@ -36,12 +36,14 @@ jobs:
         run: |
           ajv validate \
             -s spec/schemas/ws-frames.schema.json \
+            -r spec/schemas/surface-context.schema.json \
             -d spec/examples/08-l5-tool-call.json \
             --spec=draft2020 \
             -c ajv-formats
 
           ajv validate \
             -s spec/schemas/ws-frames.schema.json \
+            -r spec/schemas/surface-context.schema.json \
             -d spec/examples/09-l5-tool-result.json \
             --spec=draft2020 \
             -c ajv-formats

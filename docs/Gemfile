@@ -1,10 +1,4 @@
 source "https://rubygems.org"
-≈çç
-
-
-clear
-cat > docs/Gemfile << 'EOF'
-source "https://rubygems.org"
 
 gem "jekyll", "~> 4.3"
 gem "minima", "~> 2.5"
