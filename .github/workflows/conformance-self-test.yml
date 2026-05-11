@@ -12,6 +12,9 @@ on:
       - "conformance/**"
       - "spec/**"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   conformance:
     runs-on: ubuntu-latest
