@@ -30,16 +30,8 @@ jobs:
 
       - name: Install Jekyll and plugins as system gems
         run: |
-          sudo gem install \
-            jekyll -v "~> 4.3" \
-            minima \
-            jekyll-seo-tag \
-            jekyll-feed \
-            jekyll-relative-links \
-            jekyll-optional-front-matter \
-            jekyll-readme-index \
-            jekyll-default-layout \
-            --no-document
+          sudo gem install jekyll --no-document
+          sudo gem install minima jekyll-seo-tag jekyll-feed jekyll-relative-links jekyll-optional-front-matter jekyll-readme-index jekyll-default-layout --no-document
 
       - name: Verify jekyll-relative-links is installed
         run: ruby -e "require 'jekyll-relative-links'; puts 'OK'"
