@@ -21,9 +21,6 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  # Prevent any inherited bundler config from excluding gem groups
-  BUNDLE_WITHOUT: ""
-  BUNDLE_FROZEN: "false"
 
 jobs:
   build:
@@ -31,20 +28,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Ruby 3.2
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.2"
-
-      - name: Install gems
+      - name: Install Ruby gems (no bundler cache)
         run: |
           cd docs
-          gem install bundler --no-document
-          bundle install --jobs 4 --retry 3
+          # Use system Ruby — avoids ruby/setup-ruby's internal bundler cache
+          # that restores stale vendor/bundle across runs.
+          sudo gem install bundler --no-document
+          bundle install --jobs 4 --retry 3 --path /tmp/bundle
+        env:
+          BUNDLE_WITHOUT: ""
+          BUNDLE_FROZEN: "false"
 
       - name: Verify jekyll-relative-links is installed
         run: bundle exec ruby -e "require 'jekyll-relative-links'; puts 'OK'"
         working-directory: docs
+        env:
+          BUNDLE_PATH: /tmp/bundle
 
       - name: Build Jekyll site
         run: |
@@ -52,6 +51,7 @@ jobs:
           bundle exec jekyll build --destination ../_site
         env:
           JEKYLL_ENV: production
+          BUNDLE_PATH: /tmp/bundle
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
