@@ -108,3 +108,4 @@ as a TOOL_RESULT. MCP handles tool semantics; SBP handles the transport.
 | Wire examples | [spec/examples/](../spec/examples/) |
 | Conformance suite | [conformance/](../conformance/) |
 | Known implementations | [implementations.md](implementations.md) |
+
