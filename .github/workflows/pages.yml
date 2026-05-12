@@ -21,6 +21,9 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # Prevent any inherited bundler config from excluding gem groups
+  BUNDLE_WITHOUT: ""
+  BUNDLE_FROZEN: "false"
 
 jobs:
   build:
@@ -33,19 +36,22 @@ jobs:
         with:
           ruby-version: "3.2"
 
-      - name: Install gems (clean — no cache)
-        working-directory: docs
+      - name: Install gems
         run: |
-          rm -rf vendor/bundle .bundle
-          bundle config set --local path vendor/bundle
+          cd docs
+          gem install bundler --no-document
           bundle install --jobs 4 --retry 3
 
-      - name: Build Jekyll site
+      - name: Verify jekyll-relative-links is installed
+        run: bundle exec ruby -e "require 'jekyll-relative-links'; puts 'OK'"
         working-directory: docs
+
+      - name: Build Jekyll site
+        run: |
+          cd docs
+          bundle exec jekyll build --destination ../_site
         env:
           JEKYLL_ENV: production
-          BUNDLE_GEMFILE: ${{ github.workspace }}/docs/Gemfile
-        run: bundle exec jekyll build --destination ../_site
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
