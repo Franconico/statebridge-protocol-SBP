@@ -53,9 +53,9 @@ SBP never locks your institution into a particular LLM or infrastructure stack.
 
 ---
 
-## Five capabilities, five conformance levels
+## Six capabilities, six conformance levels
 
-Pick how much you implement. Build L1 in an afternoon; reach L5 in a week.
+Pick how much you implement. Build L1 in an afternoon; reach L6 in a few weeks.
 
 | Level | Adds | Use case |
 |---|---|---|
@@ -64,6 +64,7 @@ Pick how much you implement. Build L1 in an afternoon; reach L5 in a week.
 | **L3** — Roaming | Export / import / handoff / fork / lineage | Multi-device, multi-agent, multi-deployment |
 | **L4** — Surface | Device capability declaration | Watch, phone, desktop, voice adaptation |
 | **L5** — MCP Bridge | Bidirectional surface MCP tools | Camera, GPS, contacts callable by the agent |
+| **L6** — Federation | `/.well-known/sbp`; cross-gateway bundle resolution by CID | No single point of failure; geographic distribution |
 
 ---
 
