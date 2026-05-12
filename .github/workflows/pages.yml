@@ -28,31 +28,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
         with:
-          ruby-version: "3.2"
-          working-directory: docs
-
-      - name: Cache gems
-        uses: actions/cache@v4
-        with:
-          path: docs/vendor/bundle
-          key: gems-${{ runner.os }}-ruby3.2-${{ hashFiles('docs/Gemfile') }}
-          restore-keys: |
-            gems-${{ runner.os }}-ruby3.2-
-
-      - name: Install gems
-        working-directory: docs
-        run: |
-          bundle config set --local path vendor/bundle
-          bundle install --jobs 4 --retry 3
-
-      - name: Build Jekyll site
-        working-directory: docs
-        run: bundle exec jekyll build --destination ../_site
-        env:
-          JEKYLL_ENV: production
+          source: ./docs
+          destination: ./_site
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
