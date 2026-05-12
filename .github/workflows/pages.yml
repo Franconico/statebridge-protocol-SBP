@@ -28,15 +28,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Build with Jekyll
-        uses: actions/jekyll-build-pages@v1
+      - name: Set up Ruby 3.2
+        uses: ruby/setup-ruby@v1
         with:
-          source: ./docs
-          destination: ./_site
-          upload: false
+          ruby-version: "3.2"
+
+      - name: Install gems (clean — no cache)
+        working-directory: docs
+        run: |
+          rm -rf vendor/bundle .bundle
+          bundle config set --local path vendor/bundle
+          bundle install --jobs 4 --retry 3
+
+      - name: Build Jekyll site
+        working-directory: docs
+        env:
+          JEKYLL_ENV: production
+          BUNDLE_GEMFILE: ${{ github.workspace }}/docs/Gemfile
+        run: bundle exec jekyll build --destination ../_site
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
