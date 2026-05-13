@@ -12,6 +12,7 @@ a local Ollama instance, a vLLM deployment, or any other provider.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -73,12 +74,88 @@ async def _proxy_streaming(
     session_id: str,
     session_token: str,
 ) -> Any:
-    """Yield SSE chunks from the upstream LLM."""
+    """Yield SSE chunks from the upstream LLM (plain HTTP streaming path)."""
     url = f"{_llm_base_url()}/chat/completions"
     async with httpx.AsyncClient(timeout=120.0) as client:
         async with client.stream("POST", url, json=request_dict, headers=_llm_headers()) as resp:
             async for chunk in resp.aiter_bytes():
                 yield chunk
+
+
+async def _stream_to_websocket(
+    session_id: str,
+    request_dict: dict,
+    session_store: Any,
+    tether_queue: Any,
+) -> None:
+    """
+    Stream LLM output as TURN_CHUNK frames to an attached WebSocket surface.
+
+    If the surface disconnects mid-stream, the server keeps consuming from the
+    LLM and queues the accumulated content as a TETHER_TURN so nothing is lost.
+    This is The Tether in action: the agent keeps thinking even when the surface
+    goes offline.
+    """
+    url = f"{_llm_base_url()}/chat/completions"
+    accumulated: list[str] = []
+
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream(
+                "POST", url, json=request_dict, headers=_llm_headers()
+            ) as resp:
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                        content = (
+                            (chunk.get("choices") or [{}])[0]
+                            .get("delta", {})
+                            .get("content") or ""
+                        )
+                        if not content:
+                            continue
+                        accumulated.append(content)
+                        if manager.is_connected(session_id):
+                            await manager.send(session_id, {
+                                "type": "TURN_CHUNK",
+                                "session_id": session_id,
+                                "content": content,
+                            })
+                    except Exception:
+                        continue
+    except Exception as exc:
+        logger.warning("SBP stream_to_ws error session=%s err=%s", session_id, exc)
+
+    full_content = "".join(accumulated)
+    if not full_content:
+        return
+
+    # Persist assistant message
+    await session_store.append_message(session_id, {
+        "role": "assistant",
+        "content": full_content,
+    })
+
+    if manager.is_connected(session_id):
+        # Surface still live — signal stream end
+        await manager.send(session_id, {
+            "type": "TURN_COMPLETE",
+            "session_id": session_id,
+        })
+    else:
+        # Surface went offline mid-stream — queue for next reconnect
+        logger.info("SBP Tether queuing streamed turn session=%s chars=%d",
+                    session_id, len(full_content))
+        await tether_queue.enqueue(session_id, {
+            "type": "TETHER_TURN",
+            "session_id": session_id,
+            "content": full_content,
+        })
 
 
 @router.post("/chat/completions")
@@ -158,6 +235,31 @@ async def chat_completions(
 
     # ── Streaming path ────────────────────────────────────────────────────────
     if body.stream:
+        if manager.is_connected(session_id):
+            # Surface is live — stream chunks as TURN_CHUNK frames over WebSocket.
+            # If the surface disconnects mid-stream, the background task switches
+            # to Tether queuing automatically so nothing is lost.
+            asyncio.create_task(
+                _stream_to_websocket(
+                    session_id,
+                    request_dict,
+                    session_store,
+                    request.app.state.tether_queue,
+                )
+            )
+            # Return immediately so the curl caller gets an ack, not an HTTP stream.
+            return Response(
+                content=json.dumps({
+                    "sbp": {
+                        "session_id": session_id,
+                        "session_token": session["session_token"],
+                        "streaming": "websocket",
+                    }
+                }),
+                media_type="application/json",
+                headers={"X-Session-Token": session["session_token"]},
+            )
+        # No surface attached — fall back to plain HTTP SSE stream.
         return StreamingResponse(
             _proxy_streaming(messages, request_dict, session_id, session["session_token"]),
             media_type="text/event-stream",

@@ -86,42 +86,43 @@ lsof -ti:8080 | xargs kill -9 2>/dev/null; true   # clear port if re-running
 sbp-server start --port 8080 &
 sleep 2
 
-# ── Step 2: Start a long session — auto-capture the credentials ───────────────
+# ── Step 2: Create a session — get your ID and token ─────────────────────────
 RESULT=$(curl -s -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d "{\"model\":\"${SBP_MODEL:-llama3.2}\",
-       \"messages\":[{\"role\":\"user\",\"content\":\"Write a thorough history of the Roman Empire, section by section. Take your time.\"}],
-       \"sbp\":{\"checkpoint_every\":1}}")
+       \"messages\":[{\"role\":\"user\",\"content\":\"Hello, starting a new session.\"}],
+       \"sbp\":{}}")
 
-echo "$RESULT" | python3 -m json.tool 2>/dev/null || echo "Raw response: $RESULT"   # inspect if needed
 SID=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read(),strict=False); print(d['sbp']['session_id'])")
 TOK=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read(),strict=False); print(d['sbp']['session_token'])")
-echo "Session: $SID"
+echo "Session: $SID  Token: $TOK"
 
-# ── Step 3: Attach a surface, then immediately disconnect ─────────────────────
-npm install -g wscat 2>/dev/null      # one-time install
+# ── Step 3: Open WebSocket — then trigger a STREAMING request ─────────────────
+# Terminal A — attach the surface and leave it open:
+npm install -g wscat 2>/dev/null
 wscat -c "ws://localhost:8080/v1/sbp/ws/$SID" \
   -x "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"desktop\"}}" \
   -w -1
-# You see: SESSION_ATTACHED with queued_turns: 0
-# Now press Ctrl+C — the surface goes "offline". The Tether starts buffering.
+# You see SESSION_ATTACHED. Leave this running.
+#
+# Terminal B — fire the streaming request (replace TOK with your token):
+#   curl -s -X POST http://localhost:8080/v1/chat/completions \
+#     -H "Content-Type: application/json" \
+#     -H "X-Session-Token: $TOK" \
+#     -d '{"model":"llama-3.3-70b-versatile","stream":true,
+#          "messages":[{"role":"user","content":"Write a thorough history of the Roman Empire, section by section. Take your time."}],
+#          "sbp":{}}'
+#
+# Watch TURN_CHUNK frames arrive word-by-word in Terminal A.
+# Press Ctrl+C in Terminal A mid-stream — simulates Wi-Fi drop or browser close.
+# The server keeps consuming the LLM stream and queues what's left in the Tether.
 
-# ── Step 4: While the surface is offline, send a follow-up request ────────────
-# The agent responds via HTTP — but since no surface is attached, the turn is
-# queued in the Tether. Nothing is lost.
-curl -s -X POST http://localhost:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "X-Session-Token: $TOK" \
-  -d "{\"model\":\"${SBP_MODEL:-llama3.2}\",
-       \"messages\":[{\"role\":\"user\",\"content\":\"Continue with Section 2.\"}],
-       \"sbp\":{}}" | python3 -m json.tool 2>/dev/null | grep -A2 '"sbp"'
-
-# ── Step 5: Reconnect — the missed turn drains through instantly ──────────────
+# ── Step 4: Reconnect from a different device ─────────────────────────────────
 wscat -c "ws://localhost:8080/v1/sbp/ws/$SID" \
   -x "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"mobile\"}}" \
   -w -1
-# You see: SESSION_ATTACHED with queued_turns: 1, then a TETHER_TURN frame
-# containing the full Section 2 response — delivered the instant you reconnect.
+# SESSION_ATTACHED shows queued_turns: 1 (or more).
+# The buffered content drains through instantly — nothing was lost.
 # Notice: surface_context changed from "desktop" to "mobile" — same session, new device.
 ```
 
