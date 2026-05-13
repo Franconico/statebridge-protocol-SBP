@@ -60,7 +60,10 @@ The fastest way to understand SBP is to watch an agent survive a catastrophic di
 
 ```bash
 # ── Step 1: Install and start the server ─────────────────────────────────────
-pip install sbp-server-reference
+git clone https://github.com/Franconico/statebridge-protocol-SBP.git
+cd statebridge-protocol-SBP/reference/server-python
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
 export OPENAI_API_KEY=sk-...          # any OpenAI-compatible key
 sbp-server start --port 8080 &
 sleep 2
