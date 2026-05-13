@@ -12,9 +12,25 @@ morning, the full context is waiting.
 
 That's what SBP does. It is the open standard for the *state layer* between an
 AI agent and the human it serves — durable sessions, seamless device roaming,
-surface-aware output, and a bidirectional MCP bridge. It runs today on SQLite
-with zero dependencies. It scales to federated gateway meshes. It works with
-any LLM and any backend you already own.
+surface-aware output, and a bidirectional MCP bridge.
+
+**Start in an afternoon. Runs entirely on your laptop. Zero dependencies beyond Python.**
+
+```
+  Your Laptop
+  ┌──────────────────────────────────────────────┐
+  │                                              │
+  │   sbp-server start   (SQLite, no config)     │
+  │         │                                    │
+  │    ⇅ SBP (Northbound)                       │
+  │         │                                    │
+  │  Phone · Watch · Browser · Voice            │
+  │                                              │
+  │    ⇅ MCP (Southbound)                       │
+  │         │                                    │
+  │   Your tools, APIs, local files              │
+  └──────────────────────────────────────────────┘
+```
 
 [![Spec v1.2](https://img.shields.io/badge/spec-v1.2-blue.svg)](spec/SPEC.md)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
@@ -32,8 +48,51 @@ home, switching to their watch, or handing the task to a colleague.
 
 **SBP aims to fix this.** It is the open standard for the state layer between an agent
 and the human it serves: durable sessions, device handoff, surface adaptation,
-a bidirectional MCP bridge — and **federated gateways** so no single server is
-a single point of failure.
+and a bidirectional MCP bridge.
+
+---
+
+## Quickstart — the 5-minute magic trick
+
+The fastest way to understand SBP is to watch an agent survive a catastrophic disconnection.
+
+**Prerequisites:** Python 3.10+, an OpenAI-compatible API key, Node.js (for `wscat`).
+
+```bash
+# ── Step 1: Install and start the server ─────────────────────────────────────
+pip install sbp-server-reference
+export OPENAI_API_KEY=sk-...          # any OpenAI-compatible key
+sbp-server start --port 8080 &
+sleep 2
+
+# ── Step 2: Start a long session — auto-capture the credentials ───────────────
+RESULT=$(curl -s -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4o",
+       "messages":[{"role":"user","content":"Write a thorough history of the Roman Empire, section by section. Take your time."}],
+       "sbp":{"checkpoint_every":1}}')
+
+SID=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['sbp']['session_id'])")
+TOK=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['sbp']['session_token'])")
+echo "Session: $SID"
+
+# ── Step 3: Attach a surface — then press Ctrl+C while the agent is mid-thought
+npm install -g wscat 2>/dev/null      # one-time install
+wscat -c "ws://localhost:8080/v1/sbp/ws/$SID" \
+  --execute "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"desktop\"}}"
+# ↑ The agent starts streaming. Press Ctrl+C anywhere mid-response.
+#   This simulates the user's Wi-Fi dropping, the browser closing, anything.
+
+# ── Step 4: Reconnect — every missed turn drains through instantly ────────────
+wscat -c "ws://localhost:8080/v1/sbp/ws/$SID" \
+  --execute "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"mobile\"}}"
+# The agent is still mid-thought. Nothing was lost.
+# Notice: surface_context changed from "desktop" to "mobile" — same session, new device.
+```
+
+**The agent's consciousness survived the drive home. That's The Tether.**
+
+Full walkthrough with multi-device roaming and MCP tools: [`docs/getting-started.md`](docs/getting-started.md).
 
 ---
 
@@ -43,24 +102,7 @@ MCP gives agents **hands** to touch the machine world (databases, APIs, files).
 SBP gives agents a **soul** that persists across space and time.
 
 ```
-         ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-         │ Gateway NYC  │   │ Gateway FRA  │   │ Gateway SIN  │
-         └──────┬───────┘   └──────┬───────┘   └──────┬───────┘
-                │                  │   ⇄ L6 Federation  │
-                └──────────────────┴───────────────────┘
-                                   │
-                            ⇅  SBP (Northbound)
-                                   │
-         ┌─────────────────────────┴────────────────────────┐
-         │  Apple Watch · Phone · Browser · Voice · IoT …  │
-         └──────────────────────────────────────────────────┘
-
-                                   │
-                            ⇅  MCP (Southbound)
-                                   │
-         ┌─────────────────────────┴────────────────────────┐
-         │        Databases · APIs · Files · Tools          │
-         └──────────────────────────────────────────────────┘
+Surface  ←(SBP Northbound)→  Gateway  ←(MCP Southbound)→  Tools
 ```
 
 |                   | **MCP** (Southbound)                | **SBP** (Northbound)                       |
@@ -77,23 +119,6 @@ SBP gives agents a **soul** that persists across space and time.
 declare its own MCP tools (camera, GPS, contacts) at attach-time, and the agent
 can invoke them through SBP's bidirectional bridge. MCP handles tool semantics;
 SBP handles the transport, the buffering, and the device roaming.
-
----
-
-## Model-agnostic. Server-agnostic.
-
-SBP places **no requirements** on which LLM or infrastructure you use:
-
-- A hospital can run SBP with a local Llama model on-premises — no cloud calls,
-  no data leaving the building.
-- A startup can switch from GPT-4o to Claude mid-session by changing one field —
-  sessions survive the model swap.
-- An enterprise can move from SQLite to PostgreSQL to Temporal without changing
-  application code or surface clients.
-
-The `model` field accepts any OpenAI-compatible string. The backend is a
-4-method protocol interface — SQLite, PostgreSQL+Redis, Temporal, Cloudflare DO,
-or your own implementation.
 
 ---
 
@@ -127,41 +152,46 @@ See [`docs/reference/conformance-levels.md`](docs/reference/conformance-levels.m
 
 ---
 
-## Quickstart — the 5-minute magic trick
+## Model-agnostic. Server-agnostic.
 
-The fastest way to understand SBP is to watch an agent survive a disconnection.
+SBP places **no requirements** on which LLM or infrastructure you use:
 
-```bash
-# 1. Start the reference server (SQLite backend — zero dependencies)
-pip install sbp-server-reference
-sbp-server start --port 8080
+- A hospital can run SBP with a local Llama model on-premises — no cloud calls,
+  no data leaving the building.
+- A startup can switch from GPT-4o to Claude mid-session by changing one field —
+  sessions survive the model swap.
+- An enterprise can move from SQLite to PostgreSQL to Temporal without changing
+  application code or surface clients.
 
-# 2. Start a session
-curl -s -X POST http://localhost:8080/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "model": "gpt-4o",
-    "messages": [{"role": "user", "content": "Write me a detailed 10-step plan for learning Rust"}],
-    "sbp": { "checkpoint_every": 1 }
-  }' | tee /tmp/sbp-response.json
-# Note the session_id in sbp.session_id
+The `model` field accepts any OpenAI-compatible string. The backend is a
+4-method protocol interface — SQLite, PostgreSQL+Redis, Temporal, Cloudflare DO,
+or your own implementation.
 
-# 3. Attach a surface, then kill the connection mid-stream (Ctrl+C)
-wscat -c ws://localhost:8080/v1/sbp/ws/<session_id> \
-  -x '{"type":"ATTACH_SESSION","session_id":"<id>","session_token":"<tok>",
-       "surface_context":{"device_type":"desktop"}}'
-# Press Ctrl+C while the agent is still writing — simulating a network drop
+---
 
-# 4. Reconnect — the Tether drains every missed turn seamlessly
-wscat -c ws://localhost:8080/v1/sbp/ws/<session_id> \
-  -x '{"type":"ATTACH_SESSION","session_id":"<id>","session_token":"<tok>",
-       "surface_context":{"device_type":"mobile"}}'
-# The agent picks up exactly where it left off. Nothing was lost.
+## Scaling to production
+
+Once you've experienced the magic locally, the same protocol scales without
+changing a line of application code:
+
+```
+  Single laptop (L1–L5)              Production (L5–L6)
+  ┌─────────────────────┐            ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+  │  sbp-server         │            │ Gateway NYC  │  │ Gateway FRA  │  │ Gateway SIN  │
+  │  SQLite backend     │   ──────▶  │ PostgreSQL   │  │ PostgreSQL   │  │ PostgreSQL   │
+  │  your laptop        │            │ + Redis      │  │ + Redis      │  │ + Redis      │
+  └─────────────────────┘            └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+                                            └─────── L6 Federation ──────────────┘
 ```
 
-The agent's consciousness survived the drive home. That's The Tether.
+Backend options — swap without touching surface clients:
 
-Full walkthrough with device switching and MCP tools: [`docs/getting-started.md`](docs/getting-started.md).
+| Backend | Best for |
+|---|---|
+| `memory.py` | Unit tests, CI |
+| `sqlite.py` | Local dev, single-node production |
+| `postgres.py` | Multi-replica, PostgreSQL + Redis pub/sub |
+| Temporal *(SilkBridge)* | 30-day disconnects, guaranteed delivery across pod restarts |
 
 ---
 
