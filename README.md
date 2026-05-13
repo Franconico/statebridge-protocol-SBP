@@ -65,8 +65,12 @@ cd statebridge-protocol-SBP/reference/server-python
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-export SBP_LLM_BASE_URL=https://api.openai.com/v1   # or any OpenAI-compatible endpoint
-export SBP_LLM_API_KEY=sk-...                        # your API key
+# Pick your LLM provider — SBP works with any OpenAI-compatible endpoint:
+#   OpenAI:  SBP_LLM_BASE_URL=https://api.openai.com/v1   SBP_LLM_API_KEY=sk-...
+#   Ollama:  SBP_LLM_BASE_URL=http://localhost:11434/v1    SBP_LLM_API_KEY=ollama
+#   (Anthropic Claude users: use an OpenAI key or a local Ollama model for this demo)
+export SBP_LLM_BASE_URL=https://api.openai.com/v1
+export SBP_LLM_API_KEY=sk-...
 export SBP_JWT_SECRET=my-dev-secret-at-least-32-chars-long
 
 lsof -ti:8080 | xargs kill -9 2>/dev/null; true   # clear port if re-running

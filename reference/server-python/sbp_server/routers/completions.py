@@ -168,7 +168,11 @@ async def chat_completions(
     latency_ms = int((time.monotonic() - t0) * 1000)
 
     if resp.status_code >= 400:
-        raise HTTPException(status_code=resp.status_code, detail=resp.text)
+        try:
+            detail = resp.json()
+        except Exception:
+            detail = resp.text.replace("\n", " ")
+        raise HTTPException(status_code=resp.status_code, detail=detail)
 
     response_dict = resp.json()
 
