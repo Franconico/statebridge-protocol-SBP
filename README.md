@@ -64,7 +64,11 @@ git clone https://github.com/Franconico/statebridge-protocol-SBP.git
 cd statebridge-protocol-SBP/reference/server-python
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-export OPENAI_API_KEY=sk-...          # any OpenAI-compatible key
+
+export SBP_LLM_BASE_URL=https://api.openai.com/v1   # or any OpenAI-compatible endpoint
+export OPENAI_API_KEY=sk-...                         # your API key
+export SBP_JWT_SECRET=my-dev-secret-at-least-32-chars-long
+
 sbp-server start --port 8080 &
 sleep 2
 
