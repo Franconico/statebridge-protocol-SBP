@@ -21,7 +21,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Request, status
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from sbp_server.ws_connection_manager import manager
 
