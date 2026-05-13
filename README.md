@@ -69,6 +69,7 @@ export SBP_LLM_BASE_URL=https://api.openai.com/v1   # or any OpenAI-compatible e
 export OPENAI_API_KEY=sk-...                         # your API key
 export SBP_JWT_SECRET=my-dev-secret-at-least-32-chars-long
 
+lsof -ti:8080 | xargs kill -9 2>/dev/null; true   # clear port if re-running
 sbp-server start --port 8080 &
 sleep 2
 
