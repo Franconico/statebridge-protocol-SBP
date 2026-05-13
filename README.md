@@ -1,15 +1,14 @@
 # State Bridge Protocol (SBP)
 
-> **Give your AI agent a soul that persists.**  
-> Across disconnects. Across devices. Across time.
+> **Give your AI agent a soul that persists.** Across netwrok disconnect, Across different HW devices (e.g. Laptop/Earbuds/Car/Smart watch/Phone). Across time.
 
-Your user starts a complex research session on their laptop. They walk out the
-door and pick it up on their phone — mid-sentence. The agent is still there,
-thinking. They glance at their Apple Watch for a two-line summary on the train.
-They hand the task to a specialist agent overnight. Back at the desktop in the
+You start a work session on your laptop. You walk out the
+door and pick it up on your phone — mid-sentence. You get in the Car and roams to your car screen, the agent is still there,
+thinking. You glance at your Smart Watch for a two-line summary while you are running, and you get feedback on your Earpods while.
+You hand the task to a specialist agent overnight. Back at the desktop in the
 morning, the full context is waiting.
 
-**On every surface, in every context, the agent remembers exactly where it left off.**
+**On every surface, in every context, the agent maintains context where it left off.**
 
 That's what SBP does. It is the open standard for the *state layer* between an
 AI agent and the human it serves — durable sessions, seamless device roaming,
@@ -31,7 +30,7 @@ Today's AI agents die when the WebSocket dies. OpenAI, Anthropic, and MCP are
 reinvents session management ad hoc, and none of it survives the user driving
 home, switching to their watch, or handing the task to a colleague.
 
-**SBP fixes this.** It is the open standard for the state layer between an agent
+**SBP aims to fix this.** It is the open standard for the state layer between an agent
 and the human it serves: durable sessions, device handoff, surface adaptation,
 a bidirectional MCP bridge — and **federated gateways** so no single server is
 a single point of failure.
