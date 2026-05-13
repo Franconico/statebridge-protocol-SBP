@@ -206,6 +206,7 @@ async def chat_completions(
     # ── Append SBP metadata to response ──────────────────────────────────────
     response_dict["sbp"] = SBPResponseMeta(
         session_id=session_id,
+        session_token=session["session_token"],
         snapshot_id=snapshot_id,
         step_count=step_count,
         model_routed_to=actual_model,

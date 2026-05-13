@@ -49,6 +49,7 @@ class ChatCompletionRequest(BaseModel):
 class SBPResponseMeta(BaseModel):
     """SBP extension namespace in the response body."""
     session_id: str
+    session_token: str | None = None   # echoed in body for client convenience (also in X-Session-Token header)
     snapshot_id: str | None = None
     resume_available: bool = False
     resume_prompt: str | None = None
