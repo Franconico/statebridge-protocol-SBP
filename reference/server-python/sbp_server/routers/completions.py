@@ -93,8 +93,12 @@ async def chat_completions(
 
     agent_id = x_agent_id or "anonymous"
 
-    # ── L2: Resume check — return HTTP 202 if a suspended session exists ──────
-    if not body.sbp.force_new_session and x_session_token:
+    # ── L2: Resume check — 202 only when no new messages (status probe) ─────────
+    # If the client sends new messages alongside a suspended session token, we
+    # process them normally and queue the response in the Tether (L2 buffering).
+    # 202 is reserved for clients that explicitly probe session status without
+    # sending new content (e.g. a reconnect check before attaching a surface).
+    if not body.sbp.force_new_session and x_session_token and not body.messages:
         session = await session_store.get_by_token(x_session_token)
         if session and session.get("status") == "suspended":
             snapshot = await snapshot_store.latest(session["id"])
