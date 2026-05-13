@@ -56,21 +56,30 @@ and a bidirectional MCP bridge.
 
 The fastest way to understand SBP is to watch an agent survive a catastrophic disconnection.
 
-**Prerequisites:** Python 3.10+, an OpenAI-compatible API key (any LLM), Node.js (for `wscat`).
+**Prerequisites:** Python 3.10+, Node.js (for `wscat`), and one of:
+- **Ollama** (free, runs locally — no API key needed) — [install](https://ollama.com/download), then `ollama pull llama3.2`
+- **Any OpenAI-compatible API key** (OpenAI, Together, Groq, etc.)
 
 ```bash
-# ── Step 1: Install and start the server ─────────────────────────────────────
+# ── Step 0: Start Ollama (skip if using a cloud API key) ─────────────────────
+ollama serve &          # starts at http://localhost:11434
+ollama pull llama3.2    # ~2 GB, one-time download
+
+# ── Step 1: Install and start the SBP server ─────────────────────────────────
 git clone https://github.com/Franconico/statebridge-protocol-SBP.git
 cd statebridge-protocol-SBP/reference/server-python
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Pick your LLM provider — SBP works with any OpenAI-compatible endpoint:
-#   OpenAI:  SBP_LLM_BASE_URL=https://api.openai.com/v1   SBP_LLM_API_KEY=sk-...
-#   Ollama:  SBP_LLM_BASE_URL=http://localhost:11434/v1    SBP_LLM_API_KEY=ollama
-#   (Anthropic Claude users: use an OpenAI key or a local Ollama model for this demo)
-export SBP_LLM_BASE_URL=https://api.openai.com/v1
-export SBP_LLM_API_KEY=sk-...
+# Ollama (default — zero cost, no account needed):
+export SBP_LLM_BASE_URL=http://localhost:11434/v1
+export SBP_LLM_API_KEY=ollama
+export SBP_MODEL=llama3.2
+# Cloud alternative — uncomment and replace if you prefer:
+# export SBP_LLM_BASE_URL=https://api.openai.com/v1
+# export SBP_LLM_API_KEY=sk-...
+# export SBP_MODEL=gpt-4o
+
 export SBP_JWT_SECRET=my-dev-secret-at-least-32-chars-long
 
 lsof -ti:8080 | xargs kill -9 2>/dev/null; true   # clear port if re-running
@@ -80,9 +89,9 @@ sleep 2
 # ── Step 2: Start a long session — auto-capture the credentials ───────────────
 RESULT=$(curl -s -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model":"gpt-4o",
-       "messages":[{"role":"user","content":"Write a thorough history of the Roman Empire, section by section. Take your time."}],
-       "sbp":{"checkpoint_every":1}}')
+  -d "{\"model\":\"${SBP_MODEL:-llama3.2}\",
+       \"messages\":[{\"role\":\"user\",\"content\":\"Write a thorough history of the Roman Empire, section by section. Take your time.\"}],
+       \"sbp\":{\"checkpoint_every\":1}}")
 
 SID=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['sbp']['session_id'])")
 TOK=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['sbp']['session_token'])")
