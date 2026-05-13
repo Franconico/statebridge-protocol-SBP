@@ -82,13 +82,15 @@ echo "Session: $SID"
 # ── Step 3: Attach a surface — then press Ctrl+C while the agent is mid-thought
 npm install -g wscat 2>/dev/null      # one-time install
 wscat -c "ws://localhost:8080/v1/sbp/ws/$SID" \
-  --execute "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"desktop\"}}"
-# ↑ The agent starts streaming. Press Ctrl+C anywhere mid-response.
-#   This simulates the user's Wi-Fi dropping, the browser closing, anything.
+  -x "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"desktop\"}}" \
+  -w -1
+# ↑ -w -1 keeps the connection open so you see the agent stream.
+#   Press Ctrl+C anywhere mid-response — simulates Wi-Fi drop, browser close, anything.
 
 # ── Step 4: Reconnect — every missed turn drains through instantly ────────────
 wscat -c "ws://localhost:8080/v1/sbp/ws/$SID" \
-  --execute "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"mobile\"}}"
+  -x "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"mobile\"}}" \
+  -w -1
 # The agent is still mid-thought. Nothing was lost.
 # Notice: surface_context changed from "desktop" to "mobile" — same session, new device.
 ```
