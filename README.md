@@ -4,7 +4,7 @@
 
 You start a work session on your laptop. You walk out the
 door and pick it up on your phone — mid-sentence. You get in the Car and roams to your car screen, the agent is still there,
-thinking. You glance at your Smart Watch for a two-line summary while you are running, and you get feedback on your Earpods while.
+thinking. You glance at your Smart Watch for a two-line summary while running, while getting feedback on your Earpods.
 You hand the task to a specialist agent overnight. Back at the desktop in the
 morning, the full context is waiting.
 
@@ -56,7 +56,7 @@ and a bidirectional MCP bridge.
 
 The fastest way to understand SBP is to watch an agent survive a catastrophic disconnection.
 
-**Prerequisites:** Python 3.10+, an OpenAI-compatible API key, Node.js (for `wscat`).
+**Prerequisites:** Python 3.10+, an OpenAI-compatible API key (any LLM), Node.js (for `wscat`).
 
 ```bash
 # ── Step 1: Install and start the server ─────────────────────────────────────
