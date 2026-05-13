@@ -12,6 +12,7 @@ a local Ollama instance, a vLLM deployment, or any other provider.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import time
@@ -20,7 +21,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Request, status
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
 from sbp_server.models.completions import (
     ChatCompletionRequest,
@@ -210,7 +211,8 @@ async def chat_completions(
         model_routed_to=actual_model,
     ).model_dump()
 
-    return JSONResponse(
-        content=response_dict,
+    return Response(
+        content=json.dumps(response_dict, ensure_ascii=True),
+        media_type="application/json",
         headers={"X-Session-Token": session["session_token"]},
     )

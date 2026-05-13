@@ -94,8 +94,8 @@ RESULT=$(curl -s -X POST http://localhost:8080/v1/chat/completions \
        \"sbp\":{\"checkpoint_every\":1}}")
 
 echo "$RESULT" | python3 -m json.tool 2>/dev/null || echo "Raw response: $RESULT"   # inspect if needed
-SID=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['sbp']['session_id'])")
-TOK=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['sbp']['session_token'])")
+SID=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read(),strict=False); print(d['sbp']['session_id'])")
+TOK=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read(),strict=False); print(d['sbp']['session_token'])")
 echo "Session: $SID"
 
 # ── Step 3: Attach a surface — then press Ctrl+C while the agent is mid-thought
