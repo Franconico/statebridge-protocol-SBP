@@ -23,6 +23,8 @@ import httpx
 from fastapi import APIRouter, Header, HTTPException, Request, status
 from fastapi.responses import Response, StreamingResponse
 
+from sbp_server.ws_connection_manager import manager
+
 from sbp_server.models.completions import (
     ChatCompletionRequest,
     ResumeAvailableResponse,
@@ -202,6 +204,22 @@ async def chat_completions(
             {"messages": all_messages, "step": step_count},
             snapshot_type="checkpoint",
         )
+
+    # ── Tether: push to live surface or queue for later drain (L2) ───────────
+    if assistant_content:
+        turn_frame = {
+            "type": "TETHER_TURN",
+            "session_id": session_id,
+            "content": assistant_content,
+            "model": actual_model,
+            "step_count": step_count,
+        }
+        if manager.is_connected(session_id):
+            # Surface is live — push directly to the WebSocket
+            await manager.send(session_id, turn_frame)
+        else:
+            # Surface offline — queue for the next ATTACH_SESSION drain
+            await request.app.state.tether_queue.enqueue(session_id, turn_frame)
 
     # ── Append SBP metadata to response ──────────────────────────────────────
     response_dict["sbp"] = SBPResponseMeta(

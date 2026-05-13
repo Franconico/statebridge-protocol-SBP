@@ -98,19 +98,30 @@ SID=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read(
 TOK=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read(),strict=False); print(d['sbp']['session_token'])")
 echo "Session: $SID"
 
-# ── Step 3: Attach a surface — then press Ctrl+C while the agent is mid-thought
+# ── Step 3: Attach a surface, then immediately disconnect ─────────────────────
 npm install -g wscat 2>/dev/null      # one-time install
 wscat -c "ws://localhost:8080/v1/sbp/ws/$SID" \
   -x "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"desktop\"}}" \
   -w -1
-# ↑ -w -1 keeps the connection open so you see the agent stream.
-#   Press Ctrl+C anywhere mid-response — simulates Wi-Fi drop, browser close, anything.
+# You see: SESSION_ATTACHED with queued_turns: 0
+# Now press Ctrl+C — the surface goes "offline". The Tether starts buffering.
 
-# ── Step 4: Reconnect — every missed turn drains through instantly ────────────
+# ── Step 4: While the surface is offline, send a follow-up request ────────────
+# The agent responds via HTTP — but since no surface is attached, the turn is
+# queued in the Tether. Nothing is lost.
+curl -s -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "X-Session-Token: $TOK" \
+  -d "{\"model\":\"${SBP_MODEL:-llama3.2}\",
+       \"messages\":[{\"role\":\"user\",\"content\":\"Continue with Section 2.\"}],
+       \"sbp\":{}}" | python3 -m json.tool 2>/dev/null | grep -A2 '"sbp"'
+
+# ── Step 5: Reconnect — the missed turn drains through instantly ──────────────
 wscat -c "ws://localhost:8080/v1/sbp/ws/$SID" \
   -x "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"mobile\"}}" \
   -w -1
-# The agent is still mid-thought. Nothing was lost.
+# You see: SESSION_ATTACHED with queued_turns: 1, then a TETHER_TURN frame
+# containing the full Section 2 response — delivered the instant you reconnect.
 # Notice: surface_context changed from "desktop" to "mobile" — same session, new device.
 ```
 
