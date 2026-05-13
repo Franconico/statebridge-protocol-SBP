@@ -93,6 +93,7 @@ RESULT=$(curl -s -X POST http://localhost:8080/v1/chat/completions \
        \"messages\":[{\"role\":\"user\",\"content\":\"Write a thorough history of the Roman Empire, section by section. Take your time.\"}],
        \"sbp\":{\"checkpoint_every\":1}}")
 
+echo "$RESULT" | python3 -m json.tool 2>/dev/null || echo "Raw response: $RESULT"   # inspect if needed
 SID=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['sbp']['session_id'])")
 TOK=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['sbp']['session_token'])")
 echo "Session: $SID"
