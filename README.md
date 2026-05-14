@@ -54,79 +54,172 @@ and a bidirectional MCP bridge.
 
 ## Quickstart — the 5-minute magic trick
 
-The fastest way to understand SBP is to watch an agent survive a catastrophic disconnection.
+Watch an AI agent survive a catastrophic disconnection mid-answer, then recover the full response on a different device.
 
-**Prerequisites:** Python 3.10+, Node.js (for `wscat`), and one of:
-- **Ollama** (free, runs locally — no API key needed) — [install](https://ollama.com/download), then `ollama pull llama3.2`
-- **Any OpenAI-compatible API key** (OpenAI, Together, Groq, etc.)
+**Prerequisites:** Python 3.10+, and one of:
+- **Ollama** (free, local) — [install](https://ollama.com/download), then `ollama pull llama3.2`
+- **Any OpenAI-compatible API key** (Groq, OpenAI, Together, etc.)
+
+---
+
+### Step 1 — Install
 
 ```bash
-# ── Step 0: Start Ollama (skip if using a cloud API key) ─────────────────────
-ollama serve &          # starts at http://localhost:11434
-ollama pull llama3.2    # ~2 GB, one-time download
-
-# ── Step 1: Install and start the SBP server ─────────────────────────────────
 git clone https://github.com/Franconico/statebridge-protocol-SBP.git
 cd statebridge-protocol-SBP/reference/server-python
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
+```
 
-# Ollama (default — zero cost, no account needed):
-export SBP_LLM_BASE_URL=http://localhost:11434/v1
-export SBP_LLM_API_KEY=ollama
-export SBP_MODEL=llama3.2
-# Cloud alternative — uncomment and replace if you prefer:
-# export SBP_LLM_BASE_URL=https://api.openai.com/v1
-# export SBP_LLM_API_KEY=sk-...
-# export SBP_MODEL=gpt-4o
+### Step 2 — Point at your LLM
 
+The only two lines you need to change:
+
+```bash
+export SBP_LLM_BASE_URL=https://api.groq.com/openai/v1
+export SBP_LLM_API_KEY=<your-key>
+```
+
+Fixed settings (leave as-is):
+
+```bash
+export SBP_MODEL=llama-3.3-70b-versatile
 export SBP_JWT_SECRET=my-dev-secret-at-least-32-chars-long
+```
 
-lsof -ti:8080 | xargs kill -9 2>/dev/null; true   # clear port if re-running
+> **Ollama instead?** Use `SBP_LLM_BASE_URL=http://localhost:11434/v1`, `SBP_LLM_API_KEY=ollama`, `SBP_MODEL=llama3.2`.
+
+### Step 3 — Start the server
+
+```bash
+lsof -ti:8080 | xargs kill -9 2>/dev/null; true
 sbp-server start --port 8080 &
 sleep 2
+```
 
-# ── Step 2: Create a session — get your ID and token ─────────────────────────
+### Step 4 — Create a session
+
+```bash
 RESULT=$(curl -s -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d "{\"model\":\"${SBP_MODEL:-llama3.2}\",
+  -d "{\"model\":\"${SBP_MODEL}\",
        \"messages\":[{\"role\":\"user\",\"content\":\"Hello, starting a new session.\"}],
        \"sbp\":{}}")
 
-SID=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read(),strict=False); print(d['sbp']['session_id'])")
-TOK=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read(),strict=False); print(d['sbp']['session_token'])")
+export SID=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read(),strict=False); print(d['sbp']['session_id'])")
+export TOK=$(echo "$RESULT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read(),strict=False); print(d['sbp']['session_token'])")
 echo "Session: $SID  Token: $TOK"
-
-# ── Step 3: Open WebSocket — then trigger a STREAMING request ─────────────────
-# Terminal A — attach the surface and leave it open:
-npm install -g wscat 2>/dev/null
-wscat -c "ws://localhost:8080/v1/sbp/ws/$SID" \
-  -x "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"desktop\"}}" \
-  -w -1
-# You see SESSION_ATTACHED. Leave this running.
-#
-# Terminal B — fire the streaming request (replace TOK with your token):
-#   curl -s -X POST http://localhost:8080/v1/chat/completions \
-#     -H "Content-Type: application/json" \
-#     -H "X-Session-Token: $TOK" \
-#     -d '{"model":"llama-3.3-70b-versatile","stream":true,
-#          "messages":[{"role":"user","content":"Write a thorough history of the Roman Empire, section by section. Take your time."}],
-#          "sbp":{}}'
-#
-# Watch TURN_CHUNK frames arrive word-by-word in Terminal A.
-# Press Ctrl+C in Terminal A mid-stream — simulates Wi-Fi drop or browser close.
-# The server keeps consuming the LLM stream and queues what's left in the Tether.
-
-# ── Step 4: Reconnect from a different device ─────────────────────────────────
-wscat -c "ws://localhost:8080/v1/sbp/ws/$SID" \
-  -x "{\"type\":\"ATTACH_SESSION\",\"session_id\":\"$SID\",\"session_token\":\"$TOK\",\"surface_context\":{\"device_type\":\"mobile\"}}" \
-  -w -1
-# SESSION_ATTACHED shows queued_turns: 1 (or more).
-# The buffered content drains through instantly — nothing was lost.
-# Notice: surface_context changed from "desktop" to "mobile" — same session, new device.
 ```
 
-**The agent's consciousness survived the drive home. That's The Tether.**
+You should see two UUIDs. If blank, run `echo $RESULT` to check for an error.
+
+### Step 5 — Write the surface client
+
+A small WebSocket client that streams the agent's reply in colour:
+
+```bash
+cat > /tmp/sbp_ws_client.py << 'PYEOF'
+import asyncio, websockets, json, os
+
+CYAN = "\033[36m"; GREEN = "\033[32m"; RED = "\033[31m"
+BOLD = "\033[1m";  RESET = "\033[0m"
+
+async def run():
+    sid        = os.environ["SID"]
+    tok        = os.environ["TOK"]
+    dev        = os.environ.get("SBP_DEV", "desktop")
+    idle       = float(os.environ.get("SBP_IDLE", "0")) or None
+    char_limit = int(os.environ.get("SBP_CHAR_LIMIT", "0")) or None
+    uri        = f"ws://localhost:8080/v1/sbp/ws/{sid}"
+    attach     = json.dumps({
+        "type": "ATTACH_SESSION", "session_id": sid,
+        "session_token": tok, "surface_context": {"device_type": dev},
+    })
+    chars_shown = 0
+    first_chunk = True
+    async with websockets.connect(uri) as ws:
+        await ws.send(attach)
+        while True:
+            try:
+                frame_str = await (asyncio.wait_for(ws.recv(), idle) if idle else ws.recv())
+                frame     = json.loads(frame_str)
+                ftype     = frame.get("type", "")
+                if ftype == "SESSION_ATTACHED" and dev == "mobile":
+                    queued = frame.get("queued_turns", 0)
+                    print(f"\n{GREEN}✅  Reconnected on mobile{RESET}", flush=True)
+                    if queued:
+                        print(f"{GREEN}📬  Recovering {queued} buffered turn(s)...{RESET}\n", flush=True)
+                elif ftype == "TURN_CHUNK":
+                    content = frame.get("content", "")
+                    if first_chunk:
+                        print(f"\n{BOLD}Agent:{RESET} ", end="", flush=True)
+                        first_chunk = False
+                    print(f"{CYAN}{content}{RESET}", end="", flush=True)
+                    chars_shown += len(content)
+                    if char_limit and chars_shown >= char_limit:
+                        print(f"\n\n{RED}📶  WiFi connection lost...{RESET}\n", flush=True)
+                        break
+                elif ftype == "TETHER_TURN" and dev == "mobile":
+                    print(f"{CYAN}{frame.get('content', '')}{RESET}", flush=True)
+                elif ftype == "TURN_COMPLETE":
+                    print("", flush=True)
+                    break
+            except (asyncio.TimeoutError, websockets.exceptions.ConnectionClosed):
+                break
+
+asyncio.run(run())
+PYEOF
+```
+
+### Step 6 — Ask a question, watch the drop
+
+Paste this block, type your question, hit Enter — everything else is automatic:
+
+```bash
+echo "What would you like to ask the agent?"
+printf "You: "
+read -r USER_QUESTION
+export Q="$USER_QUESTION"
+
+PAYLOAD=$(python3 -c "
+import json, os
+q = os.environ['Q'] + ' Please answer in detail with several paragraphs.'
+print(json.dumps({'model': os.environ['SBP_MODEL'], 'stream': True,
+    'messages': [{'role': 'user', 'content': q}], 'sbp': {}}))")
+
+SBP_DEV=desktop SBP_CHAR_LIMIT=25 python3 /tmp/sbp_ws_client.py &
+WS_PID=$!
+sleep 1
+curl -s -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" -H "X-Session-Token: $TOK" \
+  -d "$PAYLOAD" > /dev/null
+wait $WS_PID
+echo "[ Agent is still thinking in the background... ]"
+sleep 8
+```
+
+### Step 7 — Reconnect as mobile, recover the full answer
+
+```bash
+echo "[ Switching to mobile — recovering the full answer ]"
+SBP_IDLE=15 SBP_DEV=mobile python3 /tmp/sbp_ws_client.py
+```
+
+**The agent kept thinking after the Wi-Fi dropped. That's The Tether.**
+
+---
+
+## ⚡ One-command demo
+
+Already installed and configured? Skip the walkthrough entirely:
+
+```bash
+sbp-demo
+```
+
+Type your question and watch the drop and recovery happen automatically.
+
+Full walkthrough: [`docs/getting-started.md`](docs/getting-started.md)
 
 Full walkthrough with multi-device roaming and MCP tools: [`docs/getting-started.md`](docs/getting-started.md).
 

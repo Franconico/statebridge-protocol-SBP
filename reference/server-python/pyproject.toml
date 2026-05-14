@@ -25,6 +25,7 @@ dependencies = [
   "python-jose[cryptography]>=3.3",   # JWT sign/verify (HS256)
   "python-dotenv>=1.0",
   "typer>=0.12",         # CLI entrypoint (sbp-server start)
+  "websockets>=12",      # sbp-demo surface client
 ]
 
 [project.optional-dependencies]
@@ -39,6 +40,7 @@ dev = [
 
 [project.scripts]
 sbp-server = "sbp_server.cli:app"
+sbp-demo   = "sbp_server.demo:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sbp_server"]
