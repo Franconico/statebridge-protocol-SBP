@@ -14,8 +14,6 @@ That's what SBP does. It is the open standard for the *state layer* between an
 AI agent and the human it serves — durable sessions, seamless device roaming,
 surface-aware output, and a bidirectional MCP bridge.
 
-**Start in an afternoon. Runs entirely on your laptop. Zero dependencies beyond Python.**
-
 ```
   Your Laptop
   ┌──────────────────────────────────────────────┐
@@ -65,19 +63,6 @@ This is what we mean by **Ambient AI**: intelligence that is not confined to a d
 SBP is the open protocol that makes this possible. It gives every surface — regardless of who built it, what OS it runs, or how small its screen is — a standard way to attach to a durable agent session, receive content adapted for its context, and hand off seamlessly to the next surface in the chain. The fridge doesn't need to know about the car. The watch doesn't need to know about the laptop. The agent holds the thread; SBP carries it everywhere.
 
 **We want every developer to be able to build for this world** — not just the teams with the resources to reinvent session management, device roaming, and surface adaptation from scratch. SBP is the infrastructure layer that makes Ambient AI a commodity, so the creativity can go into what agents actually do, not how they survive the commute.
-
----
-
-## The problem
-
-Today's AI agents die when the WebSocket dies. OpenAI, Anthropic, and MCP are
-**stateless** — every reconnect resets the conversation. Every "agent platform"
-reinvents session management ad hoc, and none of it survives the user driving
-home, switching to their watch, or handing the task to a colleague.
-
-**SBP aims to fix this.** It is the open standard for the state layer between an agent
-and the human it serves: durable sessions, device handoff, surface adaptation,
-and a bidirectional MCP bridge.
 
 ---
 
@@ -141,7 +126,7 @@ See [`docs/reference/conformance-levels.md`](docs/reference/conformance-levels.m
 
 SBP places **no requirements** on which LLM or infrastructure you use:
 
-- A hospital can run SBP with a local Llama model on-premises — no cloud calls,
+- A developer can run SBP with a local Llama model on-premises — no cloud calls,
   no data leaving the building.
 - A startup can switch from GPT-4o to Claude mid-session by changing one field —
   sessions survive the model swap.
@@ -370,7 +355,7 @@ Backend options — swap without touching surface clients:
 | `memory.py` | Unit tests, CI |
 | `sqlite.py` | Local dev, single-node production |
 | `postgres.py` | Multi-replica, PostgreSQL + Redis pub/sub |
-| Temporal *(SilkBridge)* | 30-day disconnects, guaranteed delivery across pod restarts |
+| Temporal **[SilkBridge](https://silkbridge.io)** | 30-day disconnects, guaranteed delivery across pod restarts |
 
 ---
 
