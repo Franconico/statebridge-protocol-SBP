@@ -52,9 +52,7 @@ and a bidirectional MCP bridge.
 
 ---
 
-## Quickstart — the 5-minute magic trick
-
-Watch an AI agent survive a catastrophic disconnection mid-answer, then recover the full response on a different device.
+## Quickstart
 
 **Prerequisites:** Python 3.10+, and one of:
 - **Ollama** (free, local) — [install](https://ollama.com/download), then `ollama pull llama3.2`
@@ -62,7 +60,18 @@ Watch an AI agent survive a catastrophic disconnection mid-answer, then recover 
 
 ---
 
-### Step 1 — Install
+### ⚡ One-command demo
+
+The fastest way to see SBP in action. Runs the full four-device cascade in a single interactive session:
+
+```
+💻 Laptop  →  agent streams a reply, WiFi drops mid-answer
+📱 Phone   →  reconnects, recovers the full buffered response
+⌚ Watch   →  agent distils the answer to a 2-sentence summary
+🎧 Earbuds →  a voice-friendly version is spoken aloud through your speakers
+```
+
+**Step 1 — Install**
 
 ```bash
 git clone https://github.com/Franconico/statebridge-protocol-SBP.git
@@ -71,25 +80,57 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-### Step 2 — Point at your LLM
-
-The only two lines you need to change:
+**Step 2 — Configure your LLM** (the only two lines you need to change)
 
 ```bash
 export SBP_LLM_BASE_URL=https://api.groq.com/openai/v1
 export SBP_LLM_API_KEY=<your-key>
 ```
 
-Fixed settings (leave as-is):
-
 ```bash
 export SBP_MODEL=llama-3.3-70b-versatile
 export SBP_JWT_SECRET=my-dev-secret-at-least-32-chars-long
 ```
 
-> **Ollama instead?** Use `SBP_LLM_BASE_URL=http://localhost:11434/v1`, `SBP_LLM_API_KEY=ollama`, `SBP_MODEL=llama3.2`.
+> **Ollama instead?** `SBP_LLM_BASE_URL=http://localhost:11434/v1`, `SBP_LLM_API_KEY=ollama`, `SBP_MODEL=llama3.2`
 
-### Step 3 — Start the server
+**Step 3 — Start the server and run the demo**
+
+```bash
+sbp-server start --port 8080 &
+sleep 2
+sbp-demo
+```
+
+Type your question when prompted. The rest happens automatically — drop, recovery, watch summary, and audio.
+
+> Audio uses the native TTS on every platform: `say` on macOS, `spd-say`/`espeak` on Linux, PowerShell `System.Speech` on Windows. No extra dependencies.
+
+---
+
+### 🛠 Dev-oriented demo — step by step
+
+Want to see exactly what's happening on the wire? This walkthrough drives each stage manually so you can inspect every frame.
+
+**Step 1 — Install** *(same as above, skip if done)*
+
+```bash
+git clone https://github.com/Franconico/statebridge-protocol-SBP.git
+cd statebridge-protocol-SBP/reference/server-python
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+**Step 2 — Configure**
+
+```bash
+export SBP_LLM_BASE_URL=https://api.groq.com/openai/v1
+export SBP_LLM_API_KEY=<your-key>
+export SBP_MODEL=llama-3.3-70b-versatile
+export SBP_JWT_SECRET=my-dev-secret-at-least-32-chars-long
+```
+
+**Step 3 — Start the server**
 
 ```bash
 lsof -ti:8080 | xargs kill -9 2>/dev/null; true
@@ -97,7 +138,7 @@ sbp-server start --port 8080 &
 sleep 2
 ```
 
-### Step 4 — Create a session
+**Step 4 — Create a session**
 
 ```bash
 RESULT=$(curl -s -X POST http://localhost:8080/v1/chat/completions \
@@ -113,7 +154,7 @@ echo "Session: $SID  Token: $TOK"
 
 You should see two UUIDs. If blank, run `echo $RESULT` to check for an error.
 
-### Step 5 — Write the surface client
+**Step 5 — Write the surface client**
 
 A small WebSocket client that streams the agent's reply in colour:
 
@@ -171,12 +212,9 @@ asyncio.run(run())
 PYEOF
 ```
 
-### Step 6 — Ask a question, watch the drop
-
-Paste this block, type your question, hit Enter — everything else is automatic:
+**Step 6 — Ask a question, watch the drop**
 
 ```bash
-echo "What would you like to ask the agent?"
 printf "You: "
 read -r USER_QUESTION
 export Q="$USER_QUESTION"
@@ -198,30 +236,13 @@ echo "[ Agent is still thinking in the background... ]"
 sleep 8
 ```
 
-### Step 7 — Reconnect as mobile, recover the full answer
+**Step 7 — Reconnect as mobile, recover the full answer**
 
 ```bash
-echo "[ Switching to mobile — recovering the full answer ]"
 SBP_IDLE=15 SBP_DEV=mobile python3 /tmp/sbp_ws_client.py
 ```
 
 **The agent kept thinking after the Wi-Fi dropped. That's The Tether.**
-
----
-
-## ⚡ One-command demo
-
-Already installed and configured? Skip the walkthrough entirely:
-
-```bash
-sbp-demo
-```
-
-Type your question and watch the drop and recovery happen automatically.
-
-Full walkthrough: [`docs/getting-started.md`](docs/getting-started.md)
-
-Full walkthrough with multi-device roaming and MCP tools: [`docs/getting-started.md`](docs/getting-started.md).
 
 ---
 
