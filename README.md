@@ -52,6 +52,79 @@ and a bidirectional MCP bridge.
 
 ---
 
+## SBP and MCP — complementary, not competing
+
+MCP gives agents **hands** to touch the machine world (databases, APIs, files).
+SBP gives agents a **soul** that persists across space and time.
+
+```
+Surface  ←(SBP Northbound)→  Gateway  ←(MCP Southbound)→  Tools
+```
+
+|                   | **MCP** (Southbound)                | **SBP** (Northbound)                       |
+| ----------------- | ----------------------------------- | ------------------------------------------ |
+| Connects agent to | Tools, databases, APIs              | Humans, devices, surfaces                  |
+| Stateful?         | No (per-call)                       | **Yes** (sessions survive disconnects)     |
+| Scope             | "Give the agent hands"              | "Give the agent a soul that persists"      |
+| Typical transport | stdio, HTTP+SSE                     | HTTP + WebSocket                           |
+| LLM-agnostic?     | Yes                                 | **Yes** — any OpenAI-compatible model      |
+| Server-agnostic?  | Yes                                 | **Yes** — swap backend implementations freely |
+| Created by        | Anthropic                           | The State Bridge community (open standard) |
+
+**SBP carries MCP — it does not replace it.** A surface (phone, watch) can
+declare its own MCP tools (camera, GPS, contacts) at attach-time, and the agent
+can invoke them through SBP's bidirectional bridge. MCP handles tool semantics;
+SBP handles the transport, the buffering, and the device roaming.
+
+---
+
+## The six capabilities
+
+| # | Capability     | What it does                                                         |
+|---|----------------|----------------------------------------------------------------------|
+| 1 | **Tether**     | Server keeps producing turns even when no surface is attached        |
+| 2 | **Resume**     | Same client reconnects after a disconnect; missed turns are drained  |
+| 3 | **Roaming**    | Export full session state → portable signed token → import anywhere  |
+| 4 | **Surface**    | Surfaces declare device type, screen size, capabilities at attach    |
+| 5 | **MCP Bridge** | Surfaces expose local MCP tools the agent can call over WebSocket    |
+| 6 | **Federation** | Independent gateways discover each other and exchange bundles by CID |
+
+---
+
+## Conformance levels
+
+Pick how deep you implement. Levels are cumulative.
+
+| Level | Name | Adds | Effort |
+|-------|------|------|--------|
+| **L1** | Stateful Proxy | `sbp` namespace on OpenAI-compatible completions | An afternoon |
+| **L2** | Tether + Resume | Durable turn queue; WebSocket attach/drain | A week |
+| **L3** | Roaming | Export/import/handoff/fork/lineage; content-addressed bundles | Two weeks |
+| **L4** | Surface Negotiation | `SurfaceContext` at attach; device-aware output | Days on top of L3 |
+| **L5** | MCP Bridge | Bidirectional `TOOL_CALL`/`TOOL_RESULT` over WebSocket | A week on top of L4 |
+| **L6** | Gateway Federation | `/.well-known/sbp` discovery; cross-gateway bundle resolution by SHA-256 CID | A week on top of L5 |
+
+See [`docs/reference/conformance-levels.md`](docs/reference/conformance-levels.md) for normative checklists.
+
+---
+
+## Model-agnostic. Server-agnostic.
+
+SBP places **no requirements** on which LLM or infrastructure you use:
+
+- A hospital can run SBP with a local Llama model on-premises — no cloud calls,
+  no data leaving the building.
+- A startup can switch from GPT-4o to Claude mid-session by changing one field —
+  sessions survive the model swap.
+- An enterprise can move from SQLite to PostgreSQL to Temporal without changing
+  application code or surface clients.
+
+The `model` field accepts any OpenAI-compatible string. The backend is a
+4-method protocol interface — SQLite, PostgreSQL+Redis, Temporal, Cloudflare DO,
+or your own implementation.
+
+---
+
 ## Quickstart
 
 **Prerequisites:** Python 3.10+, and one of:
@@ -243,79 +316,6 @@ SBP_IDLE=15 SBP_DEV=mobile python3 /tmp/sbp_ws_client.py
 ```
 
 **The agent kept thinking after the Wi-Fi dropped. That's The Tether.**
-
----
-
-## SBP and MCP — complementary, not competing
-
-MCP gives agents **hands** to touch the machine world (databases, APIs, files).
-SBP gives agents a **soul** that persists across space and time.
-
-```
-Surface  ←(SBP Northbound)→  Gateway  ←(MCP Southbound)→  Tools
-```
-
-|                   | **MCP** (Southbound)                | **SBP** (Northbound)                       |
-| ----------------- | ----------------------------------- | ------------------------------------------ |
-| Connects agent to | Tools, databases, APIs              | Humans, devices, surfaces                  |
-| Stateful?         | No (per-call)                       | **Yes** (sessions survive disconnects)     |
-| Scope             | "Give the agent hands"              | "Give the agent a soul that persists"      |
-| Typical transport | stdio, HTTP+SSE                     | HTTP + WebSocket                           |
-| LLM-agnostic?     | Yes                                 | **Yes** — any OpenAI-compatible model      |
-| Server-agnostic?  | Yes                                 | **Yes** — swap backend implementations freely |
-| Created by        | Anthropic                           | The State Bridge community (open standard) |
-
-**SBP carries MCP — it does not replace it.** A surface (phone, watch) can
-declare its own MCP tools (camera, GPS, contacts) at attach-time, and the agent
-can invoke them through SBP's bidirectional bridge. MCP handles tool semantics;
-SBP handles the transport, the buffering, and the device roaming.
-
----
-
-## The six capabilities
-
-| # | Capability     | What it does                                                         |
-|---|----------------|----------------------------------------------------------------------|
-| 1 | **Tether**     | Server keeps producing turns even when no surface is attached        |
-| 2 | **Resume**     | Same client reconnects after a disconnect; missed turns are drained  |
-| 3 | **Roaming**    | Export full session state → portable signed token → import anywhere  |
-| 4 | **Surface**    | Surfaces declare device type, screen size, capabilities at attach    |
-| 5 | **MCP Bridge** | Surfaces expose local MCP tools the agent can call over WebSocket    |
-| 6 | **Federation** | Independent gateways discover each other and exchange bundles by CID |
-
----
-
-## Conformance levels
-
-Pick how deep you implement. Levels are cumulative.
-
-| Level | Name | Adds | Effort |
-|-------|------|------|--------|
-| **L1** | Stateful Proxy | `sbp` namespace on OpenAI-compatible completions | An afternoon |
-| **L2** | Tether + Resume | Durable turn queue; WebSocket attach/drain | A week |
-| **L3** | Roaming | Export/import/handoff/fork/lineage; content-addressed bundles | Two weeks |
-| **L4** | Surface Negotiation | `SurfaceContext` at attach; device-aware output | Days on top of L3 |
-| **L5** | MCP Bridge | Bidirectional `TOOL_CALL`/`TOOL_RESULT` over WebSocket | A week on top of L4 |
-| **L6** | Gateway Federation | `/.well-known/sbp` discovery; cross-gateway bundle resolution by SHA-256 CID | A week on top of L5 |
-
-See [`docs/reference/conformance-levels.md`](docs/reference/conformance-levels.md) for normative checklists.
-
----
-
-## Model-agnostic. Server-agnostic.
-
-SBP places **no requirements** on which LLM or infrastructure you use:
-
-- A hospital can run SBP with a local Llama model on-premises — no cloud calls,
-  no data leaving the building.
-- A startup can switch from GPT-4o to Claude mid-session by changing one field —
-  sessions survive the model swap.
-- An enterprise can move from SQLite to PostgreSQL to Temporal without changing
-  application code or surface clients.
-
-The `model` field accepts any OpenAI-compatible string. The backend is a
-4-method protocol interface — SQLite, PostgreSQL+Redis, Temporal, Cloudflare DO,
-or your own implementation.
 
 ---
 
