@@ -39,6 +39,35 @@ surface-aware output, and a bidirectional MCP bridge.
 
 ---
 
+## Vision
+
+We are entering the age of **Ambient AI** — and it demands a different kind of infrastructure.
+
+Today, AI lives in a tab. You open a chat window, type, get a response, close it. The interaction is isolated, brittle, and tethered to a single screen. But the world around us is full of surfaces — car dashboards, smartwatches, earbuds, kitchen displays, public screens in lobbies and meeting rooms — and people move through all of them continuously, every single day.
+
+The vision behind SBP is simple: **your AI agent should move with you, not wait for you.**
+
+Imagine waking up and asking your agent a question while making coffee — the kitchen display listens. You get in the car and Apple CarPlay picks up the thread, the agent continues mid-thought on the dashboard screen. Your AirPods read you a summary as you walk into the office. A colleague glances at the shared room display and sees the relevant context, surface-adapted for a public screen. Your smartwatch taps you when the agent finishes a background task. None of these are separate sessions. None of them lose context. It is one continuous presence, flowing across every surface that is part of your day.
+
+This is what we mean by **Ambient AI**: intelligence that is not confined to a device or a window, but is woven into the environment — always present, always context-aware, always surfaced appropriately for wherever you happen to be.
+
+```
+  Morning coffee         Commute              Office               Run
+  ┌─────────────┐       ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+  │  🍳 Fridge  │  ───▶ │  🚗 CarPlay │ ───▶ │  🖥 Laptop  │ ───▶ │  ⌚ Watch   │
+  │  display    │       │  dashboard  │      │  full reply │      │  2-line sum │
+  └─────────────┘       └─────────────┘      └─────────────┘      └─────────────┘
+         │                     │                    │                     │
+         └─────────────────────┴────────────────────┴─────────────────────┘
+                              One agent. One session. Every surface.
+```
+
+SBP is the open protocol that makes this possible. It gives every surface — regardless of who built it, what OS it runs, or how small its screen is — a standard way to attach to a durable agent session, receive content adapted for its context, and hand off seamlessly to the next surface in the chain. The fridge doesn't need to know about the car. The watch doesn't need to know about the laptop. The agent holds the thread; SBP carries it everywhere.
+
+**We want every developer to be able to build for this world** — not just the teams with the resources to reinvent session management, device roaming, and surface adaptation from scratch. SBP is the infrastructure layer that makes Ambient AI a commodity, so the creativity can go into what agents actually do, not how they survive the commute.
+
+---
+
 ## The problem
 
 Today's AI agents die when the WebSocket dies. OpenAI, Anthropic, and MCP are
