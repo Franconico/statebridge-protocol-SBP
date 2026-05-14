@@ -95,14 +95,14 @@ SBP handles the transport, the buffering, and the device roaming.
 
 Pick how deep you implement. Levels are cumulative.
 
-| Level | Name | Adds | Effort |
-|-------|------|------|--------|
-| **L1** | Stateful Proxy | `sbp` namespace on OpenAI-compatible completions | An afternoon |
-| **L2** | Tether + Resume | Durable turn queue; WebSocket attach/drain | A week |
-| **L3** | Roaming | Export/import/handoff/fork/lineage; content-addressed bundles | Two weeks |
-| **L4** | Surface Negotiation | `SurfaceContext` at attach; device-aware output | Days on top of L3 |
-| **L5** | MCP Bridge | Bidirectional `TOOL_CALL`/`TOOL_RESULT` over WebSocket | A week on top of L4 |
-| **L6** | Gateway Federation | `/.well-known/sbp` discovery; cross-gateway bundle resolution by SHA-256 CID | A week on top of L5 |
+| Level | Name | Adds |
+|-------|------|------|
+| **L1** | Stateful Proxy | `sbp` namespace on OpenAI-compatible completions |
+| **L2** | Tether + Resume | Durable turn queue; WebSocket attach/drain |
+| **L3** | Roaming | Export/import/handoff/fork/lineage; content-addressed bundles |
+| **L4** | Surface Negotiation | `SurfaceContext` at attach; device-aware output |
+| **L5** | MCP Bridge | Bidirectional `TOOL_CALL`/`TOOL_RESULT` over WebSocket |
+| **L6** | Gateway Federation | `/.well-known/sbp` discovery; cross-gateway bundle resolution by SHA-256 CID |
 
 See [`docs/reference/conformance-levels.md`](docs/reference/conformance-levels.md) for normative checklists.
 
