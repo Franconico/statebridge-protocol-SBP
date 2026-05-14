@@ -1,6 +1,6 @@
 # SBP Reference Server (Python)
 
-**State Bridge Protocol v1.2 — L5 conformant reference implementation**
+**State Bridge Protocol v0.9 — L5 conformant reference implementation**
 
 This FastAPI server implements the full SBP spec (L1–L5) using pluggable
 backend interfaces and an in-memory default backend.

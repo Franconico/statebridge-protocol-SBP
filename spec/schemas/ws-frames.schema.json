@@ -59,7 +59,7 @@
         "device_type": { "type": "string" },
         "queued_turns": { "type": "integer", "minimum": 0 },
         "mcp_tools_registered": { "type": "array", "items": { "type": "string" } },
-        "sbp_version": { "type": "string", "examples": ["1.2"] },
+        "sbp_version": { "type": "string", "examples": ["0.9"] },
         "sbp_level": { "type": "string", "examples": ["L1", "L2", "L3", "L4", "L5"] }
       }
     },

@@ -74,10 +74,10 @@ def _mock_llm(monkeypatch, captured: dict | None = None):
 
 @pytest.mark.asyncio
 async def test_health(client):
-    """Server MUST expose /health returning sbp_version='1.2'."""
+    """Server MUST expose /health returning sbp_version='0.9'."""
     resp = await client.get("/health")
     assert resp.status_code == 200
-    assert resp.json()["sbp_version"] == "1.2"
+    assert resp.json()["sbp_version"] == "0.9"
 
 
 # ── L1: Stateful Proxy ────────────────────────────────────────────────────────
@@ -398,7 +398,7 @@ async def test_l4_attach_session_first_frame_required():
 
 @pytest.mark.asyncio
 async def test_l4_attach_session_handshake():
-    """SPEC §9 — Valid ATTACH_SESSION MUST return SESSION_ATTACHED with sbp_version='1.2'."""
+    """SPEC §9 — Valid ATTACH_SESSION MUST return SESSION_ATTACHED with sbp_version='0.9'."""
     from starlette.testclient import TestClient
     app = _ws_app()
     session_id = str(uuid.uuid4())
@@ -422,7 +422,7 @@ async def test_l4_attach_session_handshake():
 
     assert data["type"] == "SESSION_ATTACHED"
     assert data["session_id"] == session_id
-    assert data["sbp_version"] == "1.2"
+    assert data["sbp_version"] == "0.9"
     assert data["device_type"] == "mobile"
     assert "camera" in data["mcp_tools_registered"]
 

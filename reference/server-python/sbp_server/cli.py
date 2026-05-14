@@ -28,7 +28,7 @@ app = typer.Typer(help="State Bridge Protocol reference server", no_args_is_help
 def version() -> None:
     """Print the SBP server version."""
     from sbp_server import __version__
-    typer.echo(f"sbp-server {__version__} (SBP wire version 1.2)")
+    typer.echo(f"sbp-server {__version__} (SBP wire version 0.9)")
 
 
 @app.command()

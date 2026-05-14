@@ -4,7 +4,7 @@
 
 | Version | Supported |
 |---------|-----------|
-| v1.2 (current) | Yes — security fixes backported |
+| v0.9 (current) | Yes — security fixes backported |
 | v1.1 (internal pre-release) | No |
 
 ## Reporting a vulnerability
@@ -45,10 +45,10 @@ The following are documented in `spec/SPEC.md §12` (Security Considerations):
 - **Replay attacks**: roaming tokens are single-use by default
   (`allow_reuse: false`). Implementers MUST track consumed tokens.
 - **Surface impersonation**: the `session_token` in the `ATTACH_SESSION` frame
-  is the only surface authentication mechanism in v1.2. Implementations
+  is the only surface authentication mechanism in v0.9. Implementations
   operating in adversarial environments SHOULD add additional binding (e.g. TLS
   client certificates or mTLS between the surface and the gateway).
-- **Surface-tool authorization**: in v1.2 a surface may declare any tool name
+- **Surface-tool authorization**: in v0.9 a surface may declare any tool name
   in `mcp_tools`. Implementations SHOULD validate declared tools against an
   allowlist before invoking them.
 

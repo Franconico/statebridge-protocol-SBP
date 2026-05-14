@@ -4,13 +4,13 @@ All notable changes to the State Bridge Protocol (SBP) and the reference
 implementations are recorded here. The protocol follows [Semantic Versioning](https://semver.org/);
 the major.minor pair is what wire frames advertise via `sbp_version`.
 
-## [v1.2.0] — Initial public release
+## [v0.9.0] — Initial public release
 
-The first public release of SBP corresponds to wire-version **1.2** as already
+The first public release of SBP corresponds to wire-version **0.9** as already
 shipping in production at MARGNE-AI. Earlier internal versions (1.0, 1.1) are
 considered pre-history and are not part of the public spec.
 
-### Spec — what's normative in v1.2
+### Spec — what's normative in v0.9
 
 - **L1 — Stateful Proxy**: OpenAI `/v1/chat/completions` extended with the
   top-level `sbp` request and response namespaces.
@@ -47,7 +47,7 @@ considered pre-history and are not part of the public spec.
 - Language-agnostic HTTP fixtures organized by level (L1–L5).
 - `runner.py` validates a target server URL against a chosen level.
 
-### Reserved (not normative in v1.2)
+### Reserved (not normative in v0.9)
 
 - HITL approval flow.
 - Memory schemas beyond the bundle envelope (`schema_id` URI registry is open

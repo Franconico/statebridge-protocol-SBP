@@ -108,7 +108,7 @@ Trackers exist for scale. In a network with hundreds of independent Gateways, a 
 
 Anyone can run a Tracker. Trackers can themselves be federated (Tracker A queries Tracker B if it doesn't know a CID). A Tracker is the closest SBP gets to a "central server" — but it holds no power over session content, can be replaced trivially, and is optional even at L6.
 
-SBP deliberately uses signed manifests at well-known HTTP endpoints rather than a DHT for discovery. DHTs (Kademlia, libp2p, etc.) are technically elegant but bring bootstrap, NAT-traversal, and eclipse-attack complexity that hurts adoption. A Tracker is boring infrastructure: an HTTP service with an index. That is the right tradeoff for v1.2.
+SBP deliberately uses signed manifests at well-known HTTP endpoints rather than a DHT for discovery. DHTs (Kademlia, libp2p, etc.) are technically elegant but bring bootstrap, NAT-traversal, and eclipse-attack complexity that hurts adoption. A Tracker is boring infrastructure: an HTTP service with an index. That is the right tradeoff for v0.9.
 
 ---
 
@@ -164,4 +164,4 @@ federation:
 
 ---
 
-*SBP Federation Concepts — v1.2 — © 2026 Silkbridge, Inc. — Apache-2.0*
+*SBP Federation Concepts — v0.9 — © 2026 Silkbridge, Inc. — Apache-2.0*

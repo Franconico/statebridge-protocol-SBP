@@ -41,10 +41,10 @@ def create_app(
     app = FastAPI(
         title="SBP Reference Server",
         description=(
-            "State Bridge Protocol v1.2 — L5 conformant reference implementation. "
+            "State Bridge Protocol v0.9 — L5 conformant reference implementation. "
             "Model-agnostic: point SBP_LLM_BASE_URL at any OpenAI-compatible endpoint."
         ),
-        version="1.2.0",
+        version="0.9.0",
     )
 
     # ── Backend wiring ────────────────────────────────────────────────────────
@@ -74,6 +74,6 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict:
-        return {"status": "ok", "sbp_version": "1.2"}
+        return {"status": "ok", "sbp_version": "0.9"}
 
     return app

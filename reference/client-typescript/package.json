@@ -1,7 +1,7 @@
 {
   "name": "@statebridge/sbp-client",
-  "version": "1.2.0",
-  "description": "State Bridge Protocol (SBP) v1.2 reference client — TypeScript/browser/Node",
+  "version": "0.9.0",
+  "description": "State Bridge Protocol (SBP) v0.9 reference client — TypeScript/browser/Node",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",

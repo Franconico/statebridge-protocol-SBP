@@ -171,7 +171,7 @@ access to session content.
 
 ```json
 {
-  "sbp_version": "1.2",
+  "sbp_version": "0.9",
   "gateway_id": "<string>",
   "federation": true,
   "public_key": "<base64-DER>",
@@ -195,7 +195,7 @@ access to session content.
 
 **Optional WebRTC surface↔surface streaming with Gateway-mediated signalling.**
 
-L7 is **reserved** in SBP v1.2 and not normative. It will be specified separately
+L7 is **reserved** in SBP v0.9 and not normative. It will be specified separately
 once a reference implementation demonstrates its operational tradeoffs.
 
 ### Motivating use case
@@ -238,4 +238,4 @@ The test suite is available at: `statebridge-protocol/sbp-conformance`
 
 ---
 
-*SBP Conformance Levels — v1.2 — © 2026 Silkbridge, Inc. — Apache-2.0*
+*SBP Conformance Levels — v0.9 — © 2026 Silkbridge, Inc. — Apache-2.0*

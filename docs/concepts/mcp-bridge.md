@@ -55,14 +55,14 @@ The gateway handles the MCP protocol layer.
 
 ## What the protocol specifies
 
-SBP v1.2 specifies:
+SBP v0.9 specifies:
 - The `mcp_tools` declaration in `SurfaceContext`.
 - The `TOOL_CALL` and `TOOL_RESULT` frame schemas.
 - The `call_id` correlation mechanism for multiplexed in-flight calls.
 - The 30-second default timeout and cancellation on disconnect.
 
-SBP v1.2 does **not** specify:
-- How tool schemas are negotiated (generic passthrough schemas in v1.2; full schema exchange deferred to a future version).
+SBP v0.9 does **not** specify:
+- How tool schemas are negotiated (generic passthrough schemas in v0.9; full schema exchange deferred to a future version).
 - How the gateway injects tools into the LLM's context (implementation-defined; must be compatible with the LLM's tool-calling conventions).
 - Per-tool authorization policies (see §13.6 — implementations SHOULD validate against an allowlist).
 

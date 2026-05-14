@@ -29,7 +29,7 @@ versioned strictly:
 | Type of change                              | Versioning            | Process              |
 | ------------------------------------------- | --------------------- | -------------------- |
 | Editorial (clarification, typo, example)    | None — no version bump | Regular PR           |
-| Backwards-compatible addition (new OPTIONAL field, new error code, new well-known surface type) | Minor bump (e.g. 1.2 → 1.3) | RFC issue → PR       |
+| Backwards-compatible addition (new OPTIONAL field, new error code, new well-known surface type) | Minor bump (e.g. 0.9 → 1.0) | RFC issue → PR       |
 | Backwards-incompatible change               | Major bump (e.g. 1.x → 2.0) | RFC issue → PR, with migration notes and a transition period |
 
 ### RFC flow for additions or breaking changes

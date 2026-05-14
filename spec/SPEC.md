@@ -1,7 +1,7 @@
 # State Bridge Protocol (SBP)
-## Specification v1.2
+## Specification v0.9
 
-**Status:** Draft — v1.2 (initial public release)
+**Status:** Draft — v0.9 (initial public release)
 **Date:** 2026-05-10
 **Repository:** https://github.com/statebridge-protocol/sbp
 **License:** Apache-2.0
@@ -174,7 +174,7 @@ agent to keep working even when the user's device is offline.
 **Surface** — A client that attaches to a session via WebSocket. A surface
 represents a physical device or rendering context (phone, watch, browser,
 voice assistant, IoT device). One session has at most one attached surface at
-a time in v1.2.
+a time in v0.9.
 
 **SurfaceContext** — A descriptor sent by the surface at attach time, declaring
 its device type, output capabilities, locale, and the local MCP tools it exposes.
@@ -229,7 +229,7 @@ JSON over HTTP/1.1 or HTTP/2 (control plane) and JSON-framed WebSocket
 
 ### 4.1 Versioning
 
-The protocol version is a `major.minor` string (e.g. `"1.2"`). It is
+The protocol version is a `major.minor` string (e.g. `"0.9"`). It is
 advertised by the server in the `SESSION_ATTACHED` frame's `sbp_version` field.
 Clients SHOULD check this field and MAY refuse to operate if the version is
 incompatible.
@@ -272,13 +272,13 @@ A conformant server SHOULD advertise its level in the `SESSION_ATTACHED` frame:
 ```json
 {
   "type": "SESSION_ATTACHED",
-  "sbp_version": "1.2",
+  "sbp_version": "0.9",
   "sbp_level": "L5",
   ...
 }
 ```
 
-The `sbp_level` field is OPTIONAL in v1.2 but RECOMMENDED.
+The `sbp_level` field is OPTIONAL in v0.9 but RECOMMENDED.
 
 ---
 
@@ -519,7 +519,7 @@ deployments unless cross-deployment token verification is intentionally desired.
 Tokens are single-use by default (see §8.3). Implementations MUST verify the
 signature and expiry before accepting a token.
 
-Alternative signing algorithms (RS256, ES256) are OPTIONAL in v1.2 and MAY be
+Alternative signing algorithms (RS256, ES256) are OPTIONAL in v0.9 and MAY be
 supported by implementations that require asymmetric verification (e.g. to
 accept tokens signed by a different server).
 
@@ -750,7 +750,7 @@ A surface declares its tools in the `ATTACH_SESSION` frame's
 `"camera"`, `"gps"`, `"contacts"`).
 
 The gateway SHOULD inject corresponding tool schemas into the LLM's tool
-list so the model knows these tools are available. In v1.2 the schema format
+list so the model knows these tools are available. In v0.9 the schema format
 is implementation-defined; a future spec version MAY define a standard tool
 schema negotiation frame.
 
@@ -798,7 +798,7 @@ treat all in-flight calls for that session as cancelled.
 
 ### 10.5 Tool authorization
 
-In v1.2, a surface is implicitly authorized to execute tools it declared in
+In v0.9, a surface is implicitly authorized to execute tools it declared in
 `mcp_tools`. The gateway SHOULD NOT route a `TOOL_CALL` to a surface for a
 tool not present in the surface's declared `mcp_tools` list.
 
@@ -859,7 +859,7 @@ Reply to a `PING`. No other action required.
   "device_type":           "mobile",
   "queued_turns":          3,            // number of Tether turns about to be drained
   "mcp_tools_registered":  ["camera"],   // L5: tools the gateway accepted
-  "sbp_version":           "1.2",
+  "sbp_version":           "0.9",
   "sbp_level":             "L5"          // OPTIONAL — server's conformance level
 }
 ```
@@ -1016,7 +1016,7 @@ GET /.well-known/sbp
 
 ```json
 {
-  "sbp_version": "1.2",
+  "sbp_version": "0.9",
   "gateway_id": "<string>",
   "gateway_name": "<string>",
   "role": "gateway | tracker | both",
@@ -1069,13 +1069,13 @@ Gateways MAY discover peers via, in order of preference:
 2. **Tracker query** — submit `bundle_cid` to one or more known Trackers; receive a list of Gateway URLs that have advertised the CID.
 3. **DNS SRV records** (`_sbp._tcp.<domain>`) — standard DNS infrastructure, suitable for organisations with existing DNS operations.
 
-DHT-based discovery is intentionally **out of scope** for SBP v1.2. DHTs introduce bootstrap, NAT-traversal, and eclipse-attack concerns that are inappropriate for the protocol's L6 conformance level. Implementations MAY layer a DHT on top of `/.well-known/sbp` discovery as an extension, but doing so is not part of normative SBP.
+DHT-based discovery is intentionally **out of scope** for SBP v0.9. DHTs introduce bootstrap, NAT-traversal, and eclipse-attack concerns that are inappropriate for the protocol's L6 conformance level. Implementations MAY layer a DHT on top of `/.well-known/sbp` discovery as an extension, but doing so is not part of normative SBP.
 
 ### 13.5 Optional L7 — Direct surface↔surface data plane (reserved, v0.2)
 
 A future, OPTIONAL conformance level (L7) may define a WebRTC data-channel mode in which surface-to-surface streaming bypasses the Gateway for low-latency interactions (e.g., live device handoff between a phone and a watch on the same network). In this mode, the Gateway remains the source of truth for session state but acts only as a signalling server during the WebRTC handshake.
 
-L7 is intentionally **not normative** in SBP v1.2. WebRTC introduces non-trivial NAT-traversal and TURN-server dependencies that would inflate the minimum viable implementation. L7 will be specified separately once a reference implementation demonstrates its operational tradeoffs.
+L7 is intentionally **not normative** in SBP v0.9. WebRTC introduces non-trivial NAT-traversal and TURN-server dependencies that would inflate the minimum viable implementation. L7 will be specified separately once a reference implementation demonstrates its operational tradeoffs.
 
 ---
 
@@ -1115,7 +1115,7 @@ a standard import.
 ### 14.5 Surface impersonation
 
 The `session_token` in `ATTACH_SESSION` is the sole authentication mechanism
-for surfaces in v1.2. Implementations in high-security environments SHOULD add
+for surfaces in v0.9. Implementations in high-security environments SHOULD add
 additional binding such as:
 - TLS client certificates (mTLS) between the surface and the gateway.
 - Short-lived surface tokens bound to a device fingerprint (`surface_id`).
@@ -1244,6 +1244,6 @@ Wire-level examples for each conformance level are in [`../examples/`](../exampl
 
 | Version | Date | Summary |
 |---|---|---|
-| **1.2** | 2026-05-10 | Initial public release. All five capabilities (L1–L5) specified. Reference server and TS client shipped. |
+| **0.9** | 2026-05-10 | Initial public release. All five capabilities (L1–L5) specified. Reference server and TS client shipped. |
 | 1.1 | *(internal)* | Lineage tracking added; bundle envelope finalized. |
 | 1.0 | *(internal)* | First end-to-end Tether + Resume implementation at MARGNE-AI. |

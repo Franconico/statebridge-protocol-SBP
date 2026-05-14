@@ -103,7 +103,7 @@ Sent immediately after successful `ATTACH_SESSION` validation.
   "device_type":           "mobile",
   "queued_turns":          3,
   "mcp_tools_registered":  ["camera", "gps"],
-  "sbp_version":           "1.2",
+  "sbp_version":           "0.9",
   "sbp_level":             "L5"
 }
 ```

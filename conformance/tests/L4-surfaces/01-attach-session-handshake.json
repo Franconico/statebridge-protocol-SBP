@@ -1,5 +1,5 @@
 {
-  "description": "L4: ATTACH_SESSION MUST result in SESSION_ATTACHED with sbp_version='1.2'",
+  "description": "L4: ATTACH_SESSION MUST result in SESSION_ATTACHED with sbp_version='0.9'",
   "level": "L4",
   "transport": "websocket",
   "steps": [
@@ -32,7 +32,7 @@
       "expect_receive": {
         "type": "SESSION_ATTACHED",
         "session_id": "${session_id}",
-        "sbp_version": "1.2",
+        "sbp_version": "0.9",
         "device_type": "mobile"
       }
     }

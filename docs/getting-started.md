@@ -28,7 +28,7 @@ export SBP_LLM_API_KEY="sk-..."
 export SBP_JWT_SECRET="change-me-to-a-256-bit-secret"
 
 sbp-server start --port 8080
-# → SBP reference server v1.2 running on http://localhost:8080
+# → SBP reference server v0.9 running on http://localhost:8080
 # → Backend: in-memory (single-process)
 # → Conformance level: L5
 ```
@@ -102,7 +102,7 @@ The server responds with:
   "device_type": "mobile",
   "queued_turns": 0,
   "mcp_tools_registered": ["camera"],
-  "sbp_version": "1.2",
+  "sbp_version": "0.9",
   "sbp_level": "L5"
 }
 ```

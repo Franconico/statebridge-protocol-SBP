@@ -28,7 +28,7 @@ That's what SBP does. It is the open standard for the *state layer* between an
 AI agent and the human it serves — durable sessions, seamless device roaming,
 surface-aware output, and a bidirectional MCP bridge.
 
-[![Spec v1.2](https://img.shields.io/badge/spec-v1.2-blue.svg)](/spec/SPEC.md)
+[![Spec v0.9](https://img.shields.io/badge/spec-v0.9-blue.svg)](/spec/SPEC.md)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-green.svg)](/LICENSE)
 
 ---

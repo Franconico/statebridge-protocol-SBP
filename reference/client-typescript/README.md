@@ -1,6 +1,6 @@
 # @statebridge/sbp-client
 
-**State Bridge Protocol v1.2 — reference TypeScript client**
+**State Bridge Protocol v0.9 — reference TypeScript client**
 
 Works in browser and Node.js. Handles the full L4/L5 WebSocket protocol:
 ATTACH_SESSION handshake, Tether drain on reconnect, TURN_CHUNK streaming,

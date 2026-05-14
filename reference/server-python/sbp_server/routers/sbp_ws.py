@@ -117,7 +117,7 @@ async def sbp_websocket(session_id: str, ws: WebSocket) -> None:
         "device_type": surface.device_type,
         "queued_turns": len(tether_turns),
         "mcp_tools_registered": surface.mcp_tools,
-        "sbp_version": "1.2",
+        "sbp_version": "0.9",
     })
 
     # ── Stream buffered Tether turns ──────────────────────────────────────────
