@@ -105,6 +105,84 @@ SBP handles the transport, the buffering, and the device roaming.
 
 ---
 
+## How Roaming Tokens work
+
+A **Roaming Token** is a signed JWT that acts as a passport for your session. It lets any conformant SBP server verify, claim, and restore a session — on a different device, a different LLM, or a completely different organisation — without sharing any secret infrastructure.
+
+### The two-command flow
+
+```bash
+# 1. On your current server — export the session
+POST /v1/sbp/sessions/{session_id}/export
+→ { "roaming_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMWIyYzNkNC1lNWY2LTc4OTAtYWJjZC1lZjEyMzQ1Njc4OTAiLCJzaWQiOiI5ZjhlN2Q2Yy01YjRhLTQzMjEtOTg3Ni01NDMyMWEyYjNjNGQiLCJpYXQiOjE3MTUwMDAwMDAsImV4cCI6MTcxNTA4NjQwMH0.xK9mN2pQ4rL8vT1yW3zA6bC0dE5fG7hI" }
+
+# 2. On any other server — import and continue
+POST /v1/sbp/sessions/import
+Body: { "roaming_token": "eyJhbGci..." }
+→ { "session_id": "new-uuid", "status": "active" }  ← session continues from exactly where it left off
+```
+
+### The token decoded
+
+A Roaming Token is three Base64-encoded sections separated by dots: `header.payload.signature`.
+
+**Header** — declares the algorithm:
+```json
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+```
+
+**Payload** — the session passport:
+```jsonc
+{
+  "sub": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",  // export ID — references the stored bundle
+  "sid": "9f8e7d6c-5b4a-4321-9876-54321a2b3c4d",  // source session ID
+  "iat": 1715000000,                               // issued at (Unix timestamp)
+  "exp": 1715086400                                // expires at — max 7 days from export
+}
+```
+
+**Signature** — HMAC-SHA256 over `header.payload` using the server's secret. The receiving server verifies this before accepting the token. Tokens are **single-use by default** — once imported, the token is consumed and cannot be replayed.
+
+### What travels with the token
+
+The token is just a reference. The actual data — the **bundle** — is stored server-side and fetched by the receiving server on import. A bundle contains everything needed to restore a session from scratch:
+
+```jsonc
+{
+  "sbp_version": "0.9",
+  "exported_at": "2025-05-16T10:30:00Z",
+  "session": {
+    "id":         "9f8e7d6c-5b4a-4321-9876-54321a2b3c4d",
+    "status":     "suspended",
+    "step_count": 12
+  },
+  "messages": [
+    { "role": "user",      "content": "Plan a 3-day trip to Kyoto for two people..." },
+    { "role": "assistant", "content": "Here's a detailed Kyoto itinerary..." },
+    // ... full conversation history
+  ],
+  "memory": {
+    "schema_id": "https://silkbridge.io/schemas/memory/v1",  // URI — identifies memory format
+    "payload":   { /* episodic + semantic memory — opaque to the protocol */ }
+  },
+  "state_snapshot": { /* latest agent state */ },
+  "metadata": {
+    "export_id":      "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "message_count":  12,
+    "total_cost_usd": 0.18
+  }
+}
+```
+
+> **Portability by design:** if the receiving server doesn't recognise the `memory.schema_id`, it imports the session without memory rather than rejecting it. Full conversation history always travels. Memory is best-effort.
+
+Full spec: [`spec/SPEC.md §8`](spec/SPEC.md) · Concept guide: [`docs/concepts/roaming.md`](docs/concepts/roaming.md)
+
+---
+
 ## Conformance levels
 
 Pick how deep you implement. Levels are cumulative.
